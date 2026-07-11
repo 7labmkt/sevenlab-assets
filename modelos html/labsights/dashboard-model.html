@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="day">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{NOME_CLIENTE}} — LabSights</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/modelo_labsights/assets/favicon.png">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,700;0,900;1,700;1,900&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --off-white:#F3EDD6; --charcoal:#2B2622; --wine:#4C0013; --wine-active:#600B20;
+    --wine-night:#B3536C; --wine-deep:#2E000B; --night-bg:#1E1A18;
+    --bg:var(--off-white); --text:var(--charcoal); --text-muted:rgba(43,38,34,.62);
+    --accent:var(--wine); --glass-bg:rgba(255,255,255,.28); --glass-border:rgba(43,38,34,.08);
+    --card-bg:rgba(255,255,255,.6); --card-border:rgba(43,38,34,.1); --divider:rgba(43,38,34,.14);
+    --up:#2F7A52; --down:#B3453F;
+  }
+  html[data-theme="night"]{
+    --bg:var(--night-bg); --text:var(--off-white); --text-muted:rgba(243,237,214,.6);
+    --accent:var(--wine-night); --glass-bg:rgba(255,255,255,.035); --glass-border:rgba(243,237,214,.1);
+    --card-bg:rgba(255,255,255,.05); --card-border:rgba(243,237,214,.14); --divider:rgba(243,237,214,.16);
+    --up:#5FBE8B; --down:#E08A85;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{ font-family:'Inter', sans-serif; background:transparent; color:var(--text); transition:color .8s ease; position:relative; }
+  h1,h2,h3,h4{ font-family:'Inter',sans-serif; font-weight:600; }
+  a{ color:inherit; text-decoration:none; }
+
+  #bgScrub{ position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:-3; opacity:.5; filter:saturate(.85); }
+  .bg-scrim{ position:fixed; inset:0; z-index:-2; background:var(--bg); opacity:.68; transition:background .8s ease, opacity .8s ease; }
+  html[data-theme="night"] .bg-scrim{ opacity:.8; }
+
+  header{
+    position:sticky; top:0; z-index:30; display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    gap:12px; padding:14px 24px; background:var(--glass-bg); border-bottom:1px solid var(--glass-border);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); transition:background .8s ease, border-color .8s ease;
+  }
+  .logos{ display:flex; align-items:center; gap:22px; min-width:0; }
+  .sevenlab-logo{ height:24px; display:block; flex-shrink:0; }
+  .cliente-nome{ font-weight:600; font-size:.95rem; color:var(--text); padding-left:22px; border-left:1px solid var(--divider); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .page-title{ font-family:'Merriweather',serif; font-style:italic; font-weight:700; font-size:1.05rem; text-align:center; color:var(--accent); transition:color .8s ease; white-space:nowrap; }
+  html[data-theme="night"] .page-title{ color:var(--off-white); opacity:.95; }
+  .header-right{ display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; min-width:0; }
+  .month-tabs{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .month-tab{ font-size:.72rem; font-weight:700; padding:7px 14px; border-radius:999px; background:var(--card-bg); border:1px solid var(--card-border); cursor:pointer; color:var(--text-muted); }
+  .month-tab.active{ background:var(--accent); color:var(--off-white); border-color:var(--accent); }
+
+  /* Toggle TEMPORÁRIO só para testes visuais — remover antes de ir para produção */
+  .test-toggle{ display:inline-flex; align-items:center; gap:5px; cursor:pointer; opacity:.6; font-size:.6rem; color:var(--text-muted); flex-shrink:0; }
+  .test-toggle input{ display:none; }
+  .tt-track{ position:relative; width:32px; height:17px; border-radius:999px; background:var(--glass-bg); border:1px solid var(--glass-border); flex-shrink:0; }
+  .tt-thumb{ position:absolute; left:2px; top:2px; width:11px; height:11px; border-radius:50%; background:var(--off-white); transition:transform .35s ease; }
+  .test-toggle input:checked + .tt-track{ background:var(--night-bg); }
+  .test-toggle input:checked + .tt-track .tt-thumb{ transform:translateX(15px); }
+
+  nav.scrollspy{
+    position:sticky; z-index:29; display:flex; width:100%; top:56px; /* ajustado via JS conforme a altura real do header */
+    background:var(--glass-bg); border-bottom:1px solid var(--glass-border);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); transition:background .8s ease, border-color .8s ease;
+  }
+  nav.scrollspy a{ flex:1; text-align:center; font-size:.74rem; font-weight:700; padding:12px 6px; color:var(--text-muted); border-bottom:2px solid transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  nav.scrollspy a.active{ color:var(--accent); border-bottom-color:var(--accent); }
+
+  main{ max-width:1120px; margin:0 auto; padding:36px 24px 10px; }
+
+  #heroScrim{
+    position:fixed; top:0; left:0; width:100%; height:62vh; z-index:-1; pointer-events:none;
+    background:linear-gradient(180deg, var(--bg) 0%, var(--bg) 32%, transparent 100%);
+    opacity:.5; transition:background .8s ease;
+  }
+  .intro{ position:relative; text-align:center; margin-bottom:50px; padding:30px 24px 10px; will-change:opacity,transform; }
+  .intro .saudacao{ font-family:'Merriweather',serif; font-style:italic; font-weight:700; font-size:1.15rem; margin-bottom:6px; opacity:.92; }
+  .intro .eyebrow{ font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; font-weight:700; color:var(--accent); margin-bottom:8px; }
+  .intro h1{ font-family:'Merriweather',serif; font-style:italic; font-weight:700; font-size:clamp(1.5rem,4vw,2.2rem); margin-bottom:14px; }
+  .intro .sinopse{ color:var(--text-muted); max-width:620px; margin:0 auto; line-height:1.65; font-size:.95rem; }
+
+  section.camada{ margin-bottom:60px; scroll-margin-top:130px; position:relative; }
+  .camada-header{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+  .camada-header h2{ font-size:1.5rem; font-weight:700; }
+  .tag-chip{ font-size:.68rem; font-weight:700; padding:4px 12px; border-radius:999px; background:var(--accent); color:var(--off-white); transition:background .8s ease; }
+  .subtitulo-tag{ font-size:.78rem; color:var(--text-muted); flex-basis:100%; }
+  .pergunta-guia{ color:var(--text-muted); font-size:.9rem; margin-bottom:20px; }
+
+  .narrativa{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:20px; padding:20px 24px; margin-bottom:16px; font-size:.95rem; line-height:1.65; transition:background .8s ease, border-color .8s ease; }
+
+  .bento{ display:grid; grid-template-columns:repeat(12,1fr); gap:14px; }
+  .bento > *{ min-width:0; }
+  .span-4{ grid-column:span 4; } .span-8{ grid-column:span 8; }
+  @media (max-width:760px){ .bento > *{ grid-column:span 12 !important; } }
+
+  .bento-card{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:22px; padding:20px; transition:background .8s ease, border-color .8s ease; }
+
+  .kpi-big{ display:flex; flex-direction:column; justify-content:center; }
+  .kpi-big .label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-bottom:8px; font-weight:600; }
+  .kpi-big .value{ font-family:'Merriweather',serif; font-weight:900; font-size:clamp(1.9rem,4vw,2.5rem); color:var(--accent); line-height:1; transition:color .8s ease; }
+  .kpi-big .delta{ font-size:.78rem; margin-top:10px; font-weight:700; }
+  .kpi-big .delta.up{ color:var(--up); } .kpi-big .delta.down{ color:var(--down); }
+
+  .chart-title{ font-size:.78rem; font-weight:600; color:var(--text-muted); margin-bottom:10px; }
+  .chart-canvas-wrap{ height:190px; position:relative; }
+  .chart-fallback{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:.72rem; color:var(--text-muted); }
+
+  .reveal{ opacity:0; transform:translateY(14px); transition:opacity .55s ease, transform .55s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  .kpi-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:16px; }
+  .kpi-card{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:18px 14px; text-align:center; }
+  .kpi-card .valor{ font-family:'Merriweather',serif; font-weight:900; font-size:1.6rem; color:var(--accent); }
+  .kpi-card .label{ font-size:.72rem; color:var(--text-muted); margin-top:4px; }
+
+  .campanhas-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+  .campanha-card h4{ font-size:1rem; margin-bottom:4px; }
+  .campanha-card .objetivo{ font-size:.76rem; color:var(--text-muted); margin-bottom:14px; line-height:1.5; }
+  .campanha-metricas{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .campanha-metrica{ font-size:.78rem; }
+  .campanha-metrica b{ display:block; font-family:'Merriweather',serif; font-weight:900; font-size:1.05rem; color:var(--accent); }
+
+  .funil-stages{ display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .funil-stage{ flex:1; min-width:150px; text-align:center; background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:20px 10px; }
+  .funil-stage .valor{ font-family:'Merriweather',serif; font-weight:900; font-size:1.4rem; color:var(--accent); }
+  .funil-stage .valor-abs{ font-size:.68rem; color:var(--text-muted); }
+  .funil-stage .label{ font-size:.72rem; color:var(--text-muted); margin-top:4px; }
+  .funil-arrow{ align-self:center; font-size:1.2rem; color:var(--text-muted); flex-shrink:0; }
+
+  .conclusao-cols{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:18px; }
+  .conclusao-col{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:18px; }
+  .conclusao-col h4{ font-size:.85rem; margin-bottom:10px; }
+  .conclusao-col ul{ padding-left:18px; font-size:.85rem; line-height:1.6; color:var(--text-muted); }
+
+  footer{ text-align:center; padding:50px 24px 34px; margin-top:20px; background:#102B1F; color:var(--off-white); transition:background .8s ease; }
+  html[data-theme="night"] footer{ background:var(--charcoal); }
+  footer .mantra{ font-family:'Merriweather',serif; font-style:italic; font-size:1rem; opacity:.9; margin-bottom:20px; }
+  footer .btn{ display:inline-block; margin-bottom:26px; background:var(--wine); color:var(--off-white); font-weight:700; font-size:.8rem; padding:12px 26px; border-radius:999px; }
+  .footer-contatos{ display:flex; flex-wrap:wrap; justify-content:center; gap:18px; font-size:.78rem; color:rgba(243,237,214,.8); margin-bottom:18px; }
+  .footer-contatos a:hover{ color:var(--wine-night); }
+  footer .fine{ font-size:.68rem; color:rgba(243,237,214,.45); }
+  footer .fine a{ text-decoration:underline; }
+
+  @media (max-width:680px){
+    header{ grid-template-columns:1fr; justify-items:center; row-gap:8px; }
+    .page-title{ order:-1; }
+    .header-right{ justify-content:center; }
+    .cliente-nome{ padding-left:12px; }
+  }
+  @media (max-width:600px){
+    .funil-stages{ flex-direction:column; }
+    .funil-arrow{ transform:rotate(90deg); }
+    nav.scrollspy a{ font-size:.6rem; padding:10px 2px; }
+  }
+</style>
+</head>
+<body>
+
+<video id="bgScrub" muted autoplay loop playsinline webkit-playsinline preload="auto"
+       src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260422_191657_800d4e1f-7ab3-41af-90b6-9bd3039eb294.mp4"></video>
+<div class="bg-scrim"></div>
+<div id="heroScrim"></div>
+
+<header>
+  <div class="logos">
+    <img class="sevenlab-logo" id="sevenlabLogo"
+         src="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/brand/wine_sevenlab_logo.png"
+         alt="Sevenlab" onerror="this.style.display='none'">
+    <span class="cliente-nome" id="clienteNome">{{NOME_CLIENTE}}</span>
+  </div>
+  <div class="page-title">LabSights</div>
+  <div class="header-right">
+    <div class="month-tabs" id="monthTabs"></div>
+    <!-- TEMPORÁRIO — só para comparar dia/noite durante os testes, remover na versão final -->
+    <label class="test-toggle" title="Teste: alternar dia/noite (remover na versão final)">
+      teste
+      <input type="checkbox" id="testThemeToggle">
+      <span class="tt-track"><span class="tt-thumb"></span></span>
+    </label>
+  </div>
+</header>
+
+<nav class="scrollspy" id="scrollspy">
+  <a href="#visibilidade">Visibilidade</a>
+  <a href="#interesse">Interesse</a>
+  <a href="#intencao">Intenção</a>
+  <a href="#funil">Velocidade do Funil</a>
+  <a href="#conclusao">Conclusão</a>
+</nav>
+
+<main id="dashboardMain"></main>
+
+<footer>
+  <p class="mantra">LabSights — Relatório Mensal de Marketing</p>
+  <div class="btn" id="downloadPdfBtn">⬇ Baixar como PDF</div>
+  <div class="footer-contatos">
+    <a href="https://wa.me/5511933566532">WhatsApp Sevenlab</a>
+    <a href="mailto:contato@7labmarketing.com.br">contato@7labmarketing.com.br</a>
+    <a href="https://7labmarketing.com.br/">7labmarketing.com.br</a>
+  </div>
+  <div class="fine">
+    © 2026 Sevenlab Marketing · dados.7labmarketing.com.br<br>
+    <a href="https://dados.7labmarketing.com.br/politics" target="_blank" rel="noopener">Política de Privacidade</a>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+/* DASHBOARD_DATA — no arquivo final, substituído por {{DASHBOARD_DATA_JSON}}. Base: Belle — Fevereiro/2026. */
+const DASHBOARD_DATA = {
+  "cliente": {
+    "nome": "Belle Imóveis", "saudacao": "Olá, Belle!", "slug": "belle-imoveis", "plano": "Posicionamento",
+    "mes_referencia": "2026-02", "mes_curto": "Fevereiro", "mes_extenso": "Fevereiro de 2026",
+    "titulo_mes": "Alcance forte e geração consistente de contatos",
+    "sinopse": "Em fevereiro, a Belle Imóveis manteve uma presença digital ativa, com crescimento de alcance e geração consistente de conversas. Os conteúdos continuaram gerando visibilidade para os imóveis e os anúncios contribuíram diretamente para a abertura de novas conversas comerciais."
+  },
+  "navegacao": { "mes_anterior_label": "Dez/Jan 2025-26" },
+  "camadas": {
+    "visibilidade": {
+      "ativa": true, "tag": "Branding", "subtitulo_tag": "Exposição, Lembrança, Presença, Crescimento de audiência — Posicionamento de marca",
+      "narrativa": "Em fevereiro, a Belle Imóveis manteve forte presença digital, somando mais de 92 mil visualizações de conteúdo entre Facebook e Instagram. Esse volume de exposição ampliou a visibilidade dos imóveis e reforçou o reconhecimento da marca na região.",
+      "kpis": [ { "label": "Visualizações (Facebook + Instagram)", "valor": "92,3 mil" } ],
+      "tendencia": { "titulo": "Visualizações — últimos 5 meses", "labels": ["Out","Nov","Dez","Jan","Fev"], "valores": [58000,64000,71000,80000,92300] },
+      "top_post": null
+    },
+    "interesse": {
+      "ativa": true, "tag": "Branding", "subtitulo_tag": "",
+      "narrativa": "Além da visibilidade gerada pelos conteúdos, o mês também mostrou sinais claros de interesse do público. Durante fevereiro, os perfis registraram cerca de 2,1 mil visitas, indicando que parte das pessoas impactadas buscou conhecer melhor os imóveis e a imobiliária.",
+      "kpis": [ { "label": "Visitas ao perfil", "valor": "2,1 mil" } ],
+      "tendencia": { "titulo": "Visitas ao perfil — últimos 5 meses", "labels": ["Out","Nov","Dez","Jan","Fev"], "valores": [1200,1450,1680,1900,2100] }
+    },
+    "intencao": {
+      "ativa": true, "tag": "Leads", "subtitulo_tag": "Intenção de Contato",
+      "narrativa": "Além da visibilidade e do interesse gerado pelos conteúdos, as campanhas também estimularam contatos diretos com a imobiliária. Durante o mês, foram registradas 96 conversas iniciadas por mensagem, demonstrando intenção real de negociação por parte do público.",
+      "kpis": [ { "label": "Conversas iniciadas (total)", "valor": "96" } ],
+      "campanhas": [
+        { "nome": "Aluguel", "objetivo": "Gerar conversas diretas com quem busca imóveis para alugar na região",
+          "serie_temporal": { "titulo": "Conversas iniciadas por semana", "labels": ["Sem 1","Sem 2","Sem 3","Sem 4"], "valores": [18,22,24,15] },
+          "metricas": { "alcance": "12,4 mil", "impressoes": "38,9 mil", "valor_investido": "R$ 210,40", "custo_por_resultado": "R$ 2,66" }, "granularidade": "semanal" },
+        { "nome": "Remarketing", "objetivo": "Reengajar quem visitou o anúncio de Aluguel sem interagir — público naturalmente menor, não é uma disputa com a campanha principal",
+          "serie_temporal": { "titulo": "Conversas iniciadas por semana", "labels": ["Sem 1","Sem 2","Sem 3","Sem 4"], "valores": [3,5,7,2] },
+          "metricas": { "alcance": "3,1 mil", "impressoes": "9,8 mil", "valor_investido": "R$ 54,20", "custo_por_resultado": "R$ 3,19" }, "granularidade": "semanal" }
+      ]
+    }
+  },
+  "velocidade_funil": {
+    "estagios": [
+      { "label": "Visualizações", "valor": "92,3 mil", "valor_abs": "" },
+      { "label": "Visitas ao Perfil", "valor": "2,3%", "valor_abs": "≈ 2,1 mil pessoas" },
+      { "label": "Conversas Iniciadas", "valor": "4,5%", "valor_abs": "96 conversas" }
+    ],
+    "diagnostico": "Aproximadamente 2,3% das pessoas que visualizaram os conteúdos visitaram o perfil da Belle Imóveis. Entre essas visitas, cerca de 4,5% evoluíram para uma conversa direta — o conteúdo e os anúncios estão transformando visibilidade em oportunidades reais de contato."
+  },
+  "conclusao": {
+    "narrativa_final": "Em fevereiro, a presença digital da Belle Imóveis continuou cumprindo bem seu papel principal: manter os imóveis visíveis para o público da região e gerar oportunidades de contato com potenciais clientes.",
+    "funcionou_bem": ["O conteúdo mantém a vitrine de imóveis ativa e visível para o público certo", "Os anúncios de aluguel seguem como o principal motor de novas conversas comerciais"],
+    "atencao": ["Crescimento de seguidores ainda moderado — perfil usado mais como consulta pontual do que acompanhamento recorrente"],
+    "recomendacoes": ["Ajustar a estratégia de conteúdo para fortalecer o novo posicionamento da marca", "Revisar e otimizar as campanhas de remarketing, buscando maior estabilidade"]
+  }
+};
+
+function formatShort(value){
+  const abs = Math.abs(value);
+  if (abs >= 1000000) return (value/1000000).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' mi';
+  if (abs >= 1000) return (value/1000).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' mil';
+  return value.toLocaleString('pt-BR');
+}
+function calcDelta(valores){
+  if (!valores || valores.length < 2) return null;
+  const last = valores[valores.length-1], prev = valores[valores.length-2];
+  if (!prev) return null;
+  const pct = ((last - prev) / prev) * 100;
+  return { pct: Math.round(pct*10)/10, up: pct >= 0 };
+}
+
+const chartRegistry = {}; const chartInstances = {};
+function registerChart(canvasId, type, labels, valores){ chartRegistry[canvasId] = { type, labels, valores }; }
+
+function renderKpis(kpis){
+  return kpis.map(k => `<div class="kpi-card reveal"><div class="valor">${k.valor}</div><div class="label">${k.label}</div></div>`).join('');
+}
+function renderCampanhasGrid(campanhas){
+  if (!campanhas || !campanhas.length) return '';
+  const cards = campanhas.map((c, i) => {
+    const canvasId = `chart-campanha-${i}`;
+    registerChart(canvasId, 'line', c.serie_temporal.labels, c.serie_temporal.valores);
+    return `
+      <div class="bento-card campanha-card reveal">
+        <h4>${c.nome}</h4>
+        <p class="objetivo">${c.objetivo}</p>
+        <div class="campanha-metricas">
+          <div class="campanha-metrica"><b>${c.metricas.alcance}</b>Alcance</div>
+          <div class="campanha-metrica"><b>${c.metricas.impressoes}</b>Impressões</div>
+          <div class="campanha-metrica"><b>${c.metricas.valor_investido}</b>Valor investido</div>
+          <div class="campanha-metrica"><b>${c.metricas.custo_por_resultado}</b>Custo por resultado</div>
+        </div>
+        <div class="chart-title">${c.serie_temporal.titulo} <span style="opacity:.6;font-weight:400;">(dado ${c.granularidade})</span></div>
+        <div class="chart-canvas-wrap" style="height:130px;"><canvas id="${canvasId}"></canvas></div>
+      </div>`;
+  }).join('');
+  return `<div class="campanhas-grid">${cards}</div>`;
+}
+function renderCamada(id, titulo, pergunta, camada){
+  if (!camada || camada.ativa === false) return '';
+  const tagHtml = camada.tag ? `<span class="tag-chip">${camada.tag}</span>` : '';
+  const subtituloHtml = camada.subtitulo_tag ? `<div class="subtitulo-tag">${camada.subtitulo_tag}</div>` : '';
+  const campanhasHtml = camada.campanhas ? renderCampanhasGrid(camada.campanhas) : '';
+
+  let bodyHtml = '';
+  if (camada.kpis && camada.kpis.length === 1 && camada.tendencia){
+    const canvasId = `chart-${id}`;
+    registerChart(canvasId, 'line', camada.tendencia.labels, camada.tendencia.valores);
+    const delta = calcDelta(camada.tendencia.valores);
+    const deltaHtml = delta ? `<div class="delta ${delta.up?'up':'down'}">${delta.up?'▲':'▼'} ${Math.abs(delta.pct)}% vs. mês anterior</div>` : '';
+    bodyHtml = `
+      <div class="bento">
+        <div class="bento-card kpi-big span-4 reveal">
+          <div class="label">${camada.kpis[0].label}</div>
+          <div class="value">${camada.kpis[0].valor}</div>
+          ${deltaHtml}
+        </div>
+        <div class="bento-card span-8 reveal">
+          <div class="chart-title">${camada.tendencia.titulo || ''}</div>
+          <div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div>
+        </div>
+      </div>`;
+  } else {
+    const kpisHtml = camada.kpis && camada.kpis.length ? `<div class="kpi-row">${renderKpis(camada.kpis)}</div>` : '';
+    let chartHtml = '';
+    if (camada.tendencia){
+      const canvasId = `chart-${id}`;
+      registerChart(canvasId, 'line', camada.tendencia.labels, camada.tendencia.valores);
+      chartHtml = `<div class="bento-card reveal" style="margin-bottom:16px;"><div class="chart-title">${camada.tendencia.titulo||''}</div><div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div></div>`;
+    }
+    bodyHtml = kpisHtml + chartHtml;
+  }
+
+  const topPostHtml = camada.top_post ? `
+    <div class="bento-card reveal" style="max-width:280px;margin-top:16px;">
+      <img src="${camada.top_post.imagem_asset}" alt="Publicação em destaque" style="width:100%;border-radius:12px;display:block;">
+      <div style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-top:6px;">${camada.top_post.legenda || 'Publicação em destaque no mês'}</div>
+    </div>` : '';
+
+  return `
+    <section class="camada" id="${id}">
+      <div class="camada-header"><h2>${titulo}</h2>${tagHtml}${subtituloHtml}</div>
+      <p class="pergunta-guia">${pergunta}</p>
+      <div class="narrativa reveal">${camada.narrativa}</div>
+      ${bodyHtml}
+      ${campanhasHtml}
+      ${topPostHtml}
+    </section>`;
+}
+function renderFunil(funil){
+  const stages = funil.estagios.map((e,i,arr) => {
+    const arrow = i < arr.length - 1 ? '<div class="funil-arrow">→</div>' : '';
+    const absHtml = e.valor_abs ? `<div class="valor-abs">${e.valor_abs}</div>` : '';
+    return `<div class="funil-stage reveal"><div class="valor">${e.valor}</div>${absHtml}<div class="label">${e.label}</div></div>${arrow}`;
+  }).join('');
+  return `
+    <section class="camada" id="funil">
+      <div class="camada-header"><h2>⚡ Velocidade do Funil</h2></div>
+      <p class="pergunta-guia">Efetividade de cada etapa do funil</p>
+      <div class="funil-stages">${stages}</div>
+      <div class="narrativa reveal">${funil.diagnostico}</div>
+    </section>`;
+}
+function renderConclusao(c){
+  const li = arr => arr.map(x => `<li>${x}</li>`).join('');
+  return `
+    <section class="camada" id="conclusao" style="margin-bottom:20px;">
+      <div class="camada-header"><h2>Conclusão</h2></div>
+      <div class="narrativa reveal">${c.narrativa_final}</div>
+      <div class="conclusao-cols">
+        <div class="conclusao-col reveal"><h4>✅ O que funcionou bem</h4><ul>${li(c.funcionou_bem)}</ul></div>
+        <div class="conclusao-col reveal"><h4>⚠️ Pontos de atenção</h4><ul>${li(c.atencao)}</ul></div>
+        <div class="conclusao-col reveal"><h4>🚀 Próximos passos</h4><ul>${li(c.recomendacoes)}</ul></div>
+      </div>
+    </section>`;
+}
+function renderStaticContent(data){
+  document.getElementById('clienteNome').textContent = data.cliente.nome;
+  document.title = `LabSights ${data.cliente.nome} — ${data.cliente.mes_extenso}`;
+  const monthTabs = document.getElementById('monthTabs');
+  monthTabs.innerHTML = '';
+  if (data.navegacao.mes_anterior_label){
+    monthTabs.innerHTML += `<div class="month-tab" id="mesAnteriorTab">${data.navegacao.mes_anterior_label}</div>`;
+  }
+  monthTabs.innerHTML += `<div class="month-tab active">${data.cliente.mes_curto}</div>`;
+  const anterior = document.getElementById('mesAnteriorTab');
+  if (anterior) anterior.addEventListener('click', () => alert('Na versão publicada, isso troca o conteúdo via fetch() para o mês anterior, sem recarregar a página.'));
+
+  const saudacao = data.cliente.saudacao || `Olá, ${data.cliente.nome.split(' ')[0]}!`;
+  const main = document.getElementById('dashboardMain');
+  main.innerHTML = `
+    <div class="intro">
+      <div class="saudacao">${saudacao}</div>
+      <div class="eyebrow">Relatório Mensal · ${data.cliente.mes_extenso}</div>
+      <h1>${data.cliente.titulo_mes}</h1>
+      <p class="sinopse">${data.cliente.sinopse}</p>
+    </div>
+    ${renderCamada('visibilidade', 'Visibilidade', 'A marca está sendo vista?', data.camadas.visibilidade)}
+    ${renderCamada('interesse', 'Interesse', 'Estão prestando atenção nela?', data.camadas.interesse)}
+    ${renderCamada('intencao', 'Intenção', 'Querem falar com a empresa?', data.camadas.intencao)}
+    ${renderFunil(data.velocidade_funil)}
+    ${renderConclusao(data.conclusao)}
+  `;
+}
+
+function currentAccent(){ return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); }
+function buildChart(canvasId){
+  const spec = chartRegistry[canvasId]; const canvas = document.getElementById(canvasId);
+  if (!spec || !canvas) return;
+  const accent = currentAccent();
+  chartInstances[canvasId] = new Chart(canvas, {
+    type: spec.type,
+    data: { labels: spec.labels, datasets: [{ data: spec.valores, borderColor: accent, backgroundColor: spec.type === 'bar' ? accent : 'transparent', tension:.35, pointRadius:3, borderRadius: spec.type==='bar'?6:0 }] },
+    options: { responsive:true, maintainAspectRatio:false, animation:{ duration:900, easing:'easeOutQuart' }, plugins:{ legend:{display:false} },
+      scales:{ y:{ beginAtZero:true, ticks:{ font:{size:9}, maxTicksLimit:5, callback:(v)=>formatShort(v) } }, x:{ ticks:{ font:{size:9} } } } }
+  });
+}
+function refreshChartColors(){
+  const accent = currentAccent();
+  Object.entries(chartInstances).forEach(([id, chart]) => {
+    const spec = chartRegistry[id];
+    chart.data.datasets[0].borderColor = accent;
+    if (spec.type === 'bar') chart.data.datasets[0].backgroundColor = accent;
+    chart.update('none');
+  });
+}
+function setupLazyCharts(){
+  try {
+    if (typeof Chart === 'undefined') throw new Error('Chart.js não carregou.');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting){
+          const canvas = entry.target.querySelector('canvas');
+          if (canvas && !chartInstances[canvas.id]) buildChart(canvas.id);
+          entry.target.classList.add('in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold:.25 });
+    document.querySelectorAll('.chart-canvas-wrap').forEach(el => observer.observe(el.closest('.reveal') || el));
+  } catch(err){
+    console.error('Gráficos indisponíveis:', err);
+    document.querySelectorAll('.chart-canvas-wrap').forEach(el => el.insertAdjacentHTML('beforeend', '<div class="chart-fallback">Gráfico indisponível no momento</div>'));
+  }
+}
+function setupReveal(){
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => { if (entry.isIntersecting){ entry.target.classList.add('in'); observer.unobserve(entry.target); } });
+  }, { threshold:.2 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+}
+
+/* SCROLLSPY */
+function setupScrollspy(){
+  const sections = () => Array.from(document.querySelectorAll('section.camada'));
+  const navLinks = document.querySelectorAll('nav.scrollspy a');
+  function onScroll(){
+    const triggerY = window.scrollY + window.innerHeight * 0.51;
+    let current = sections()[0] && sections()[0].id;
+    sections().forEach(sec => { if (triggerY >= sec.offsetTop) current = sec.id; });
+    const atBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 2);
+    if (atBottom) current = sections()[sections().length - 1].id;
+    navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + current));
+  }
+  window.addEventListener('scroll', onScroll);
+  navLinks.forEach(link => link.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) window.scrollTo({ top: target.offsetTop - 110, behavior:'smooth' });
+  }));
+  onScroll();
+}
+
+/* HEADER STICKY DINÂMICO — a barra de seções sempre gruda logo abaixo do header, não importa quantas linhas ele ocupe no mobile */
+function syncHeaderHeight(){
+  const header = document.querySelector('header');
+  const nav = document.querySelector('nav.scrollspy');
+  if (header && nav) nav.style.top = header.offsetHeight + 'px';
+}
+
+/* DIA/NOITE */
+function setTheme(isNight){
+  document.documentElement.setAttribute('data-theme', isNight ? 'night' : 'day');
+  const logo = document.getElementById('sevenlabLogo');
+  if (logo) logo.src = isNight
+    ? 'https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/brand/off_sevenlab_logo.png'
+    : 'https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/brand/wine_sevenlab_logo.png';
+  refreshChartColors();
+}
+function applyThemeByClock(){ const h = new Date().getHours(); setTheme(h >= 18 || h < 6); }
+
+/* VÍDEO DE FUNDO — por ora, autoplay/loop simples (scroll-scrubbing volta numa próxima sessão, estava travando) */
+
+/* FADE DO HERO NO SCROLL — texto e scrim somem juntos conforme desce, "cedendo o protagonismo" ao fundo */
+function setupHeroFade(){
+  const intro = document.querySelector('.intro');
+  const scrim = document.getElementById('heroScrim');
+  if (!intro) return;
+  const fadeRange = 480; // px de rolagem até desaparecer por completo
+  function update(){
+    const p = Math.min(Math.max(window.scrollY / fadeRange, 0), 1);
+    intro.style.opacity = 1 - p;
+    intro.style.transform = `translateY(${-24 * p}px)`;
+    if (scrim) scrim.style.opacity = 0.5 * (1 - p);
+  }
+  window.addEventListener('scroll', () => requestAnimationFrame(update));
+  update();
+}
+
+/* INIT */
+applyThemeByClock();
+renderStaticContent(DASHBOARD_DATA);
+try { syncHeaderHeight(); window.addEventListener('resize', syncHeaderHeight); window.addEventListener('load', syncHeaderHeight); } catch(e){ console.error('HeaderSync:', e); }
+try { setupScrollspy(); } catch(e){ console.error('Scrollspy:', e); }
+try { setupReveal(); } catch(e){ console.error('Reveal:', e); }
+try { setupLazyCharts(); } catch(e){ console.error('Charts:', e); }
+try { setupHeroFade(); } catch(e){ console.error('HeroFade:', e); }
+try {
+  document.getElementById('downloadPdfBtn').addEventListener('click', async function(){
+    const btn = this;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Gerando PDF…';
+
+    // Força todo conteúdo lazy (gráficos e reveal) a existir antes de capturar
+    Object.keys(chartRegistry).forEach(id => { if (!chartInstances[id]) buildChart(id); });
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+    await new Promise(r => setTimeout(r, 500)); // respiro para os gráficos desenharem
+
+    // Esconde elementos fixos/sticky que atrapalham a captura (não fazem sentido num PDF estático)
+    const toHide = [
+      document.querySelector('header'),
+      document.getElementById('scrollspy'),
+      document.getElementById('bgScrub'),
+      document.querySelector('.bg-scrim'),
+      document.getElementById('heroScrim'),
+      btn
+    ].filter(Boolean);
+    toHide.forEach(el => el.style.visibility = 'hidden');
+
+    const filename = document.title.replace(/[^\w\sÀ-ÿ-]/g, '').trim() + '.pdf';
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    const target = document.getElementById('dashboardMain');
+
+    try {
+      await html2pdf().set({
+        margin: 0,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: bgColor },
+        jsPDF: { unit: 'px', format: [target.scrollWidth, target.scrollHeight], orientation: 'portrait' }
+      }).from(target).save();
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      alert('Não foi possível gerar o PDF agora. Tente novamente.');
+    } finally {
+      toHide.forEach(el => el.style.visibility = 'visible');
+      btn.textContent = originalLabel;
+    }
+  });
+} catch(e){ console.error('PDF button:', e); }
+try { document.getElementById('testThemeToggle').addEventListener('change', (e) => setTheme(e.target.checked)); } catch(e){ console.error('Test toggle:', e); }
+</script>
+
+</body>
+</html>
