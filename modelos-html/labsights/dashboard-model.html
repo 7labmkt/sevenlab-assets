@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{NOME_CLIENTE}} — LabSights</title>
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/modelos-html/labsights/assets/favicon.png">
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/modelo_labsights/assets/favicon.png">
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,700;0,900;1,700;1,900&family=Inter:wght@400;500;600;700&display=swap');
@@ -49,14 +49,6 @@
   .month-tab{ font-size:.72rem; font-weight:700; padding:7px 14px; border-radius:999px; background:var(--card-bg); border:1px solid var(--card-border); cursor:pointer; color:var(--text-muted); }
   .month-tab.active{ background:var(--accent); color:var(--off-white); border-color:var(--accent); }
 
-  /* Toggle TEMPORÁRIO só para testes visuais — remover antes de ir para produção */
-  .test-toggle{ display:inline-flex; align-items:center; gap:5px; cursor:pointer; opacity:.6; font-size:.6rem; color:var(--text-muted); flex-shrink:0; }
-  .test-toggle input{ display:none; }
-  .tt-track{ position:relative; width:32px; height:17px; border-radius:999px; background:var(--glass-bg); border:1px solid var(--glass-border); flex-shrink:0; }
-  .tt-thumb{ position:absolute; left:2px; top:2px; width:11px; height:11px; border-radius:50%; background:var(--off-white); transition:transform .35s ease; }
-  .test-toggle input:checked + .tt-track{ background:var(--night-bg); }
-  .test-toggle input:checked + .tt-track .tt-thumb{ transform:translateX(15px); }
-
   nav.scrollspy{
     position:sticky; z-index:29; display:flex; width:100%; top:56px; /* ajustado via JS conforme a altura real do header */
     background:var(--glass-bg); border-bottom:1px solid var(--glass-border);
@@ -93,6 +85,8 @@
   @media (max-width:760px){ .bento > *{ grid-column:span 12 !important; } }
 
   .bento-card{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:22px; padding:20px; transition:background .8s ease, border-color .8s ease; }
+  /* Evita que o PDF corte um card ao meio na quebra de página */
+  .bento-card, .narrativa, .kpi-card, .funil-stage, .conclusao-col, .campanha-card{ break-inside:avoid; page-break-inside:avoid; }
 
   .kpi-big{ display:flex; flex-direction:column; justify-content:center; }
   .kpi-big .label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-bottom:8px; font-weight:600; }
@@ -170,12 +164,6 @@
   <div class="page-title">LabSights</div>
   <div class="header-right">
     <div class="month-tabs" id="monthTabs"></div>
-    <!-- TEMPORÁRIO — só para comparar dia/noite durante os testes, remover na versão final -->
-    <label class="test-toggle" title="Teste: alternar dia/noite (remover na versão final)">
-      teste
-      <input type="checkbox" id="testThemeToggle">
-      <span class="tt-track"><span class="tt-thumb"></span></span>
-    </label>
   </div>
 </header>
 
@@ -207,57 +195,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 /* DASHBOARD_DATA — no arquivo final, substituído por {{DASHBOARD_DATA_JSON}}. Base: Belle — Fevereiro/2026. */
-const DASHBOARD_DATA = {
-  "cliente": {
-    "nome": "Belle Imóveis", "saudacao": "Olá, Belle!", "slug": "belle-imoveis", "plano": "Posicionamento",
-    "mes_referencia": "2026-02", "mes_curto": "Fevereiro", "mes_extenso": "Fevereiro de 2026",
-    "titulo_mes": "Alcance forte e geração consistente de contatos",
-    "sinopse": "Em fevereiro, a Belle Imóveis manteve uma presença digital ativa, com crescimento de alcance e geração consistente de conversas. Os conteúdos continuaram gerando visibilidade para os imóveis e os anúncios contribuíram diretamente para a abertura de novas conversas comerciais."
-  },
-  "navegacao": { "mes_anterior_label": "Dez/Jan 2025-26" },
-  "camadas": {
-    "visibilidade": {
-      "ativa": true, "tag": "Branding", "subtitulo_tag": "Exposição, Lembrança, Presença, Crescimento de audiência — Posicionamento de marca",
-      "narrativa": "Em fevereiro, a Belle Imóveis manteve forte presença digital, somando mais de 92 mil visualizações de conteúdo entre Facebook e Instagram. Esse volume de exposição ampliou a visibilidade dos imóveis e reforçou o reconhecimento da marca na região.",
-      "kpis": [ { "label": "Visualizações (Facebook + Instagram)", "valor": "92,3 mil" } ],
-      "tendencia": { "titulo": "Visualizações — últimos 5 meses", "labels": ["Out","Nov","Dez","Jan","Fev"], "valores": [58000,64000,71000,80000,92300] },
-      "top_post": null
-    },
-    "interesse": {
-      "ativa": true, "tag": "Branding", "subtitulo_tag": "",
-      "narrativa": "Além da visibilidade gerada pelos conteúdos, o mês também mostrou sinais claros de interesse do público. Durante fevereiro, os perfis registraram cerca de 2,1 mil visitas, indicando que parte das pessoas impactadas buscou conhecer melhor os imóveis e a imobiliária.",
-      "kpis": [ { "label": "Visitas ao perfil", "valor": "2,1 mil" } ],
-      "tendencia": { "titulo": "Visitas ao perfil — últimos 5 meses", "labels": ["Out","Nov","Dez","Jan","Fev"], "valores": [1200,1450,1680,1900,2100] }
-    },
-    "intencao": {
-      "ativa": true, "tag": "Leads", "subtitulo_tag": "Intenção de Contato",
-      "narrativa": "Além da visibilidade e do interesse gerado pelos conteúdos, as campanhas também estimularam contatos diretos com a imobiliária. Durante o mês, foram registradas 96 conversas iniciadas por mensagem, demonstrando intenção real de negociação por parte do público.",
-      "kpis": [ { "label": "Conversas iniciadas (total)", "valor": "96" } ],
-      "campanhas": [
-        { "nome": "Aluguel", "objetivo": "Gerar conversas diretas com quem busca imóveis para alugar na região",
-          "serie_temporal": { "titulo": "Conversas iniciadas por semana", "labels": ["Sem 1","Sem 2","Sem 3","Sem 4"], "valores": [18,22,24,15] },
-          "metricas": { "alcance": "12,4 mil", "impressoes": "38,9 mil", "valor_investido": "R$ 210,40", "custo_por_resultado": "R$ 2,66" }, "granularidade": "semanal" },
-        { "nome": "Remarketing", "objetivo": "Reengajar quem visitou o anúncio de Aluguel sem interagir — público naturalmente menor, não é uma disputa com a campanha principal",
-          "serie_temporal": { "titulo": "Conversas iniciadas por semana", "labels": ["Sem 1","Sem 2","Sem 3","Sem 4"], "valores": [3,5,7,2] },
-          "metricas": { "alcance": "3,1 mil", "impressoes": "9,8 mil", "valor_investido": "R$ 54,20", "custo_por_resultado": "R$ 3,19" }, "granularidade": "semanal" }
-      ]
-    }
-  },
-  "velocidade_funil": {
-    "estagios": [
-      { "label": "Visualizações", "valor": "92,3 mil", "valor_abs": "" },
-      { "label": "Visitas ao Perfil", "valor": "2,3%", "valor_abs": "≈ 2,1 mil pessoas" },
-      { "label": "Conversas Iniciadas", "valor": "4,5%", "valor_abs": "96 conversas" }
-    ],
-    "diagnostico": "Aproximadamente 2,3% das pessoas que visualizaram os conteúdos visitaram o perfil da Belle Imóveis. Entre essas visitas, cerca de 4,5% evoluíram para uma conversa direta — o conteúdo e os anúncios estão transformando visibilidade em oportunidades reais de contato."
-  },
-  "conclusao": {
-    "narrativa_final": "Em fevereiro, a presença digital da Belle Imóveis continuou cumprindo bem seu papel principal: manter os imóveis visíveis para o público da região e gerar oportunidades de contato com potenciais clientes.",
-    "funcionou_bem": ["O conteúdo mantém a vitrine de imóveis ativa e visível para o público certo", "Os anúncios de aluguel seguem como o principal motor de novas conversas comerciais"],
-    "atencao": ["Crescimento de seguidores ainda moderado — perfil usado mais como consulta pontual do que acompanhamento recorrente"],
-    "recomendacoes": ["Ajustar a estratégia de conteúdo para fortalecer o novo posicionamento da marca", "Revisar e otimizar as campanhas de remarketing, buscando maior estabilidade"]
-  }
-};
+/* Este placeholder é substituído por inteiro (pelo Claude, na hora de gerar o relatório de cada cliente)
+   pelo objeto JSON real do mês — nunca deixar dados de um cliente específico aqui no arquivo-modelo. */
+const DASHBOARD_DATA = {{DASHBOARD_DATA_JSON}};
 
 function formatShort(value){
   const abs = Math.abs(value);
@@ -547,11 +487,12 @@ try {
 
     try {
       await html2pdf().set({
-        margin: 0,
+        margin: [8, 8, 8, 8],
         filename: filename,
         image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: bgColor },
-        jsPDF: { unit: 'px', format: [target.scrollWidth, target.scrollHeight], orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'avoid-all'] }
       }).from(target).save();
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
@@ -562,7 +503,7 @@ try {
     }
   });
 } catch(e){ console.error('PDF button:', e); }
-try { document.getElementById('testThemeToggle').addEventListener('change', (e) => setTheme(e.target.checked)); } catch(e){ console.error('Test toggle:', e); }
+
 </script>
 
 </body>
