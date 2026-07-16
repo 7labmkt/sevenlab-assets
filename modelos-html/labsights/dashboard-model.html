@@ -120,10 +120,16 @@
   .funil-stage .label{ font-size:.72rem; color:var(--text-muted); margin-top:4px; }
   .funil-arrow{ align-self:center; font-size:1.2rem; color:var(--text-muted); flex-shrink:0; }
 
-  .top-post-grid{ display:flex; gap:14px; flex-wrap:wrap; margin-top:16px; }
-  .top-post-frame{ flex:1; min-width:180px; max-width:280px; background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:10px; transition:background .8s ease, border-color .8s ease; }
-  .top-post-frame img{ width:100%; border-radius:12px; display:block; }
-  .top-post-label{ font-size:.7rem; color:var(--text-muted); text-align:center; margin-top:6px; font-weight:600; }
+  /* Top post — duas molduras retangulares lado a lado (IG + FB). aspect-ratio 2.6/1
+     acomoda o print inteiro da tela "Top posts" do Meta (vários posts lado a lado),
+     não um post isolado — nunca recortar só o primeiro post da fileira. */
+  .top-post-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
+  @media (max-width:560px){ .top-post-grid{ grid-template-columns:1fr; } }
+  .top-post-frame{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:22px; padding:20px; overflow:hidden; transition:background .8s ease, border-color .8s ease; }
+  .top-post-frame .img-box{ width:100%; aspect-ratio:2.6/1; overflow:hidden; border-radius:14px; background:var(--divider); }
+  .top-post-frame .img-box img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+  .top-post-frame .plataforma{ font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); margin:10px 0 4px; transition:color .8s ease; }
+  .top-post-frame .cap{ font-size:.78rem; color:var(--text-muted); line-height:1.5; }
 
   .conclusao-cols{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:18px; }
   .conclusao-col{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:18px; }
@@ -275,12 +281,14 @@ function renderCampanhasGrid(campanhas){
 }
 function renderTopPost(topPost){
   if (!topPost || (!topPost.imagem_ig && !topPost.imagem_fb)) return '';
-  const frame = (url, label) => url ? `
-    <div class="top-post-frame">
-      <img src="${url}" alt="Post em destaque — ${label}" loading="lazy">
-      <div class="top-post-label">${label}</div>
+  const legendaPadrao = 'Publicação em destaque no mês';
+  const frame = (url, label, legenda) => url ? `
+    <div class="top-post-frame reveal">
+      <div class="img-box"><img src="${url}" alt="Post em destaque — ${label}" loading="lazy"></div>
+      <div class="plataforma">👑 Top Posts: ${label}</div>
+      <div class="cap">${legenda || legendaPadrao}</div>
     </div>` : '';
-  return `<div class="top-post-grid reveal">${frame(topPost.imagem_ig, 'Instagram')}${frame(topPost.imagem_fb, 'Facebook')}</div>`;
+  return `<div class="top-post-grid">${frame(topPost.imagem_ig, 'Instagram', topPost.legenda_ig || topPost.legenda)}${frame(topPost.imagem_fb, 'Facebook', topPost.legenda_fb || topPost.legenda)}</div>`;
 }
 function renderCamada(id, titulo, pergunta, camada){
   if (!camada || camada.ativa === false) return '';
