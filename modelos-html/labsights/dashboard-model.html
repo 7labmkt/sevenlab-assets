@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{NOME_CLIENTE}} — LabSights</title>
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/modelo_labsights/assets/favicon.png">
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/modelos-html/labsights/assets/favicon.png">
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,700;0,900;1,700;1,900&family=Inter:wght@400;500;600;700&display=swap');
@@ -114,11 +114,16 @@
   .campanha-metrica b{ display:block; font-family:'Merriweather',serif; font-weight:900; font-size:1.05rem; color:var(--accent); }
 
   .funil-stages{ display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
-  .funil-stage{ flex:1; min-width:150px; text-align:center; background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:20px 10px; }
+  .funil-stage{ flex:1; min-width:150px; text-align:center; background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:20px 10px; transition:transform .25s ease, background .8s ease, border-color .8s ease; }
   .funil-stage .valor{ font-family:'Merriweather',serif; font-weight:900; font-size:1.4rem; color:var(--accent); }
   .funil-stage .valor-abs{ font-size:.68rem; color:var(--text-muted); }
   .funil-stage .label{ font-size:.72rem; color:var(--text-muted); margin-top:4px; }
   .funil-arrow{ align-self:center; font-size:1.2rem; color:var(--text-muted); flex-shrink:0; }
+
+  .top-post-grid{ display:flex; gap:14px; flex-wrap:wrap; margin-top:16px; }
+  .top-post-frame{ flex:1; min-width:180px; max-width:280px; background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:10px; transition:background .8s ease, border-color .8s ease; }
+  .top-post-frame img{ width:100%; border-radius:12px; display:block; }
+  .top-post-label{ font-size:.7rem; color:var(--text-muted); text-align:center; margin-top:6px; font-weight:600; }
 
   .conclusao-cols{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:18px; }
   .conclusao-col{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:18px; }
@@ -144,6 +149,19 @@
     .funil-stages{ flex-direction:column; }
     .funil-arrow{ transform:rotate(90deg); }
     nav.scrollspy a{ font-size:.6rem; padding:10px 2px; }
+  }
+
+  /* CAPTURA ESTÁTICA (PDF) — aplicado via JS quando detecta o headless do PDFShift,
+     e também como fallback puro-CSS caso o navegador force media=print de outra forma. */
+  html.pdf-capturing header, html.pdf-capturing nav.scrollspy, html.pdf-capturing #bgScrub,
+  html.pdf-capturing .bg-scrim, html.pdf-capturing #heroScrim, html.pdf-capturing #downloadPdfBtn{
+    display:none !important;
+  }
+  html.pdf-capturing .reveal{ opacity:1 !important; transform:none !important; }
+  @media print{
+    header, nav.scrollspy, #bgScrub, .bg-scrim, #heroScrim, #downloadPdfBtn{ display:none !important; }
+    .reveal{ opacity:1 !important; transform:none !important; }
+    body{ background:var(--bg) !important; }
   }
 </style>
 </head>
@@ -192,7 +210,6 @@
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 /* DASHBOARD_DATA — no arquivo final, substituído por {{DASHBOARD_DATA_JSON}}. Base: Belle — Fevereiro/2026. */
 /* Este placeholder é substituído por inteiro (pelo Claude, na hora de gerar o relatório de cada cliente)
@@ -213,8 +230,24 @@ function calcDelta(valores){
   return { pct: Math.round(pct*10)/10, up: pct >= 0 };
 }
 
+function shadeColor(hex, percent){
+  hex = (hex || '#4C0013').trim().replace('#','');
+  if (hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+  const num = parseInt(hex,16);
+  let r = (num >> 16) + Math.round(255*percent/100);
+  let g = ((num >> 8) & 0x00FF) + Math.round(255*percent/100);
+  let b = (num & 0x0000FF) + Math.round(255*percent/100);
+  r = Math.min(255,Math.max(0,r)); g = Math.min(255,Math.max(0,g)); b = Math.min(255,Math.max(0,b));
+  return '#' + (0x1000000 + r*0x10000 + g*0x100 + b).toString(16).slice(1);
+}
+function chartJsType(tipo){
+  if (tipo === 'barras') return 'bar';
+  if (tipo === 'rosca') return 'doughnut';
+  return 'line'; // 'linha' ou fallback — só usar quando a evolução no tempo for de fato o que importa contar
+}
+
 const chartRegistry = {}; const chartInstances = {};
-function registerChart(canvasId, type, labels, valores){ chartRegistry[canvasId] = { type, labels, valores }; }
+function registerChart(canvasId, tipo, labels, valores){ chartRegistry[canvasId] = { type: tipo, labels, valores }; }
 
 function renderKpis(kpis){
   return kpis.map(k => `<div class="kpi-card reveal"><div class="valor">${k.valor}</div><div class="label">${k.label}</div></div>`).join('');
@@ -223,7 +256,7 @@ function renderCampanhasGrid(campanhas){
   if (!campanhas || !campanhas.length) return '';
   const cards = campanhas.map((c, i) => {
     const canvasId = `chart-campanha-${i}`;
-    registerChart(canvasId, 'line', c.serie_temporal.labels, c.serie_temporal.valores);
+    registerChart(canvasId, c.serie_temporal.tipo || 'linha', c.serie_temporal.labels, c.serie_temporal.valores);
     return `
       <div class="bento-card campanha-card reveal">
         <h4>${c.nome}</h4>
@@ -240,6 +273,15 @@ function renderCampanhasGrid(campanhas){
   }).join('');
   return `<div class="campanhas-grid">${cards}</div>`;
 }
+function renderTopPost(topPost){
+  if (!topPost || (!topPost.imagem_ig && !topPost.imagem_fb)) return '';
+  const frame = (url, label) => url ? `
+    <div class="top-post-frame">
+      <img src="${url}" alt="Post em destaque — ${label}" loading="lazy">
+      <div class="top-post-label">${label}</div>
+    </div>` : '';
+  return `<div class="top-post-grid reveal">${frame(topPost.imagem_ig, 'Instagram')}${frame(topPost.imagem_fb, 'Facebook')}</div>`;
+}
 function renderCamada(id, titulo, pergunta, camada){
   if (!camada || camada.ativa === false) return '';
   const tagHtml = camada.tag ? `<span class="tag-chip">${camada.tag}</span>` : '';
@@ -249,7 +291,7 @@ function renderCamada(id, titulo, pergunta, camada){
   let bodyHtml = '';
   if (camada.kpis && camada.kpis.length === 1 && camada.tendencia){
     const canvasId = `chart-${id}`;
-    registerChart(canvasId, 'line', camada.tendencia.labels, camada.tendencia.valores);
+    registerChart(canvasId, camada.tendencia.tipo || 'linha', camada.tendencia.labels, camada.tendencia.valores);
     const delta = calcDelta(camada.tendencia.valores);
     const deltaHtml = delta ? `<div class="delta ${delta.up?'up':'down'}">${delta.up?'▲':'▼'} ${Math.abs(delta.pct)}% vs. mês anterior</div>` : '';
     bodyHtml = `
@@ -269,17 +311,13 @@ function renderCamada(id, titulo, pergunta, camada){
     let chartHtml = '';
     if (camada.tendencia){
       const canvasId = `chart-${id}`;
-      registerChart(canvasId, 'line', camada.tendencia.labels, camada.tendencia.valores);
+      registerChart(canvasId, camada.tendencia.tipo || 'linha', camada.tendencia.labels, camada.tendencia.valores);
       chartHtml = `<div class="bento-card reveal" style="margin-bottom:16px;"><div class="chart-title">${camada.tendencia.titulo||''}</div><div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div></div>`;
     }
     bodyHtml = kpisHtml + chartHtml;
   }
 
-  const topPostHtml = camada.top_post ? `
-    <div class="bento-card reveal" style="max-width:280px;margin-top:16px;">
-      <img src="${camada.top_post.imagem_asset}" alt="Publicação em destaque" style="width:100%;border-radius:12px;display:block;">
-      <div style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-top:6px;">${camada.top_post.legenda || 'Publicação em destaque no mês'}</div>
-    </div>` : '';
+  const topPostHtml = renderTopPost(camada.top_post);
 
   return `
     <section class="camada" id="${id}">
@@ -291,11 +329,24 @@ function renderCamada(id, titulo, pergunta, camada){
       ${topPostHtml}
     </section>`;
 }
+function funilDiscSvg(accent, index){
+  const larguras = [86, 62, 40]; // taper visual do funil — do topo (maior) ao fundo (menor)
+  const w = larguras[index] ?? 40;
+  const h = w * 0.34;
+  const corTopo = shadeColor(accent, index * 8);
+  const corBorda = shadeColor(accent, -18 - index*4);
+  return `
+    <svg class="funil-disc" viewBox="0 0 100 ${Math.round(h+18)}" width="${w}" style="display:block;margin:0 auto 10px;">
+      <ellipse cx="50" cy="${Math.round(h/2)+12}" rx="46" ry="${(h/2).toFixed(1)}" fill="${corBorda}" opacity=".55"></ellipse>
+      <ellipse cx="50" cy="${Math.round(h/2)+6}" rx="46" ry="${(h/2).toFixed(1)}" fill="${corTopo}"></ellipse>
+    </svg>`;
+}
 function renderFunil(funil){
+  const accent = currentAccent();
   const stages = funil.estagios.map((e,i,arr) => {
     const arrow = i < arr.length - 1 ? '<div class="funil-arrow">→</div>' : '';
     const absHtml = e.valor_abs ? `<div class="valor-abs">${e.valor_abs}</div>` : '';
-    return `<div class="funil-stage reveal"><div class="valor">${e.valor}</div>${absHtml}<div class="label">${e.label}</div></div>${arrow}`;
+    return `<div class="funil-stage reveal" data-stage="${i}">${funilDiscSvg(accent, i)}<div class="valor">${e.valor}</div>${absHtml}<div class="label">${e.label}</div></div>${arrow}`;
   }).join('');
   return `
     <section class="camada" id="funil">
@@ -304,6 +355,21 @@ function renderFunil(funil){
       <div class="funil-stages">${stages}</div>
       <div class="narrativa reveal">${funil.diagnostico}</div>
     </section>`;
+}
+function refreshFunilColors(){
+  const accent = currentAccent();
+  document.querySelectorAll('.funil-stage').forEach(el => {
+    const i = parseInt(el.dataset.stage, 10) || 0;
+    const ellipses = el.querySelectorAll('svg.funil-disc ellipse');
+    if (ellipses[0]) ellipses[0].setAttribute('fill', shadeColor(accent, -18 - i*4));
+    if (ellipses[1]) ellipses[1].setAttribute('fill', shadeColor(accent, i*8));
+  });
+}
+function setupFunilHover(){
+  document.querySelectorAll('.funil-stage').forEach(el => {
+    el.addEventListener('mouseenter', () => { el.style.transform = 'translateY(-4px)'; });
+    el.addEventListener('mouseleave', () => { el.style.transform = ''; });
+  });
 }
 function renderConclusao(c){
   const li = arr => arr.map(x => `<li>${x}</li>`).join('');
@@ -348,23 +414,58 @@ function renderStaticContent(data){
 }
 
 function currentAccent(){ return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); }
+function chartThemeColors(){
+  const style = getComputedStyle(document.documentElement);
+  return {
+    text: (style.getPropertyValue('--text-muted') || '').trim() || 'rgba(0,0,0,.6)',
+    grid: (style.getPropertyValue('--divider') || '').trim() || 'rgba(0,0,0,.1)'
+  };
+}
 function buildChart(canvasId){
   const spec = chartRegistry[canvasId]; const canvas = document.getElementById(canvasId);
   if (!spec || !canvas) return;
   const accent = currentAccent();
-  chartInstances[canvasId] = new Chart(canvas, {
-    type: spec.type,
-    data: { labels: spec.labels, datasets: [{ data: spec.valores, borderColor: accent, backgroundColor: spec.type === 'bar' ? accent : 'transparent', tension:.35, pointRadius:3, borderRadius: spec.type==='bar'?6:0 }] },
-    options: { responsive:true, maintainAspectRatio:false, animation:{ duration:900, easing:'easeOutQuart' }, plugins:{ legend:{display:false} },
-      scales:{ y:{ beginAtZero:true, ticks:{ font:{size:9}, maxTicksLimit:5, callback:(v)=>formatShort(v) } }, x:{ ticks:{ font:{size:9} } } } }
-  });
+  const theme = chartThemeColors();
+  const jsType = chartJsType(spec.type);
+  const capturing = document.documentElement.classList.contains('pdf-capturing');
+
+  let dataset;
+  if (jsType === 'doughnut'){
+    dataset = { data: spec.valores, backgroundColor: spec.valores.map((_, i) => shadeColor(accent, i * -14)), borderWidth: 0 };
+  } else {
+    dataset = { data: spec.valores, borderColor: accent, backgroundColor: jsType === 'bar' ? accent : 'transparent', tension:.35, pointRadius:3, borderRadius: jsType==='bar'?6:0 };
+  }
+
+  const options = {
+    responsive:true, maintainAspectRatio:false,
+    animation: capturing ? false : { duration:900, easing:'easeOutQuart' },
+    plugins:{ legend:{ display: jsType==='doughnut', position:'bottom', labels:{ color: theme.text, font:{size:10}, boxWidth:12 } } }
+  };
+  if (jsType !== 'doughnut'){
+    options.scales = {
+      y:{ beginAtZero:true, ticks:{ font:{size:9}, color: theme.text, maxTicksLimit:5, callback:(v)=>formatShort(v) }, grid:{ color: theme.grid } },
+      x:{ ticks:{ font:{size:9}, color: theme.text }, grid:{ display:false } }
+    };
+  }
+
+  chartInstances[canvasId] = new Chart(canvas, { type: jsType, data: { labels: spec.labels, datasets: [dataset] }, options });
 }
 function refreshChartColors(){
   const accent = currentAccent();
+  const theme = chartThemeColors();
   Object.entries(chartInstances).forEach(([id, chart]) => {
     const spec = chartRegistry[id];
-    chart.data.datasets[0].borderColor = accent;
-    if (spec.type === 'bar') chart.data.datasets[0].backgroundColor = accent;
+    const jsType = chartJsType(spec.type);
+    if (jsType === 'doughnut'){
+      chart.data.datasets[0].backgroundColor = spec.valores.map((_, i) => shadeColor(accent, i * -14));
+    } else {
+      chart.data.datasets[0].borderColor = accent;
+      if (jsType === 'bar') chart.data.datasets[0].backgroundColor = accent;
+    }
+    if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = theme.text;
+    if (chart.options.scales?.y?.ticks) chart.options.scales.y.ticks.color = theme.text;
+    if (chart.options.scales?.y?.grid) chart.options.scales.y.grid.color = theme.grid;
+    if (chart.options.scales?.x?.ticks) chart.options.scales.x.ticks.color = theme.text;
     chart.update('none');
   });
 }
@@ -430,6 +531,7 @@ function setTheme(isNight){
     ? 'https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/brand/off_sevenlab_logo.png'
     : 'https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/brand/wine_sevenlab_logo.png';
   refreshChartColors();
+  refreshFunilColors();
 }
 function applyThemeByClock(){ const h = new Date().getHours(); setTheme(h >= 18 || h < 6); }
 
@@ -451,56 +553,47 @@ function setupHeroFade(){
   update();
 }
 
+/* CAPTURA ESTÁTICA (PDF) — detecta se quem está carregando a página é o navegador
+   headless do PDFShift (Puppeteer sempre expõe navigator.webdriver=true) ou o próprio
+   modo de impressão, e força tudo a aparecer de uma vez (sem esperar scroll), sem
+   animação de gráfico no meio do caminho — evita o bug antigo de captura pela metade. */
+window.isPageReady = false;
+function isCaptureContext(){
+  try { return navigator.webdriver === true || window.matchMedia('print').matches; }
+  catch(e){ return false; }
+}
+function prepareForStaticCapture(){
+  document.documentElement.classList.add('pdf-capturing');
+  Object.keys(chartRegistry).forEach(id => { if (!chartInstances[id]) buildChart(id); });
+  document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+  window.isPageReady = true;
+}
+
 /* INIT */
 applyThemeByClock();
 renderStaticContent(DASHBOARD_DATA);
 try { syncHeaderHeight(); window.addEventListener('resize', syncHeaderHeight); window.addEventListener('load', syncHeaderHeight); } catch(e){ console.error('HeaderSync:', e); }
 try { setupScrollspy(); } catch(e){ console.error('Scrollspy:', e); }
 try { setupReveal(); } catch(e){ console.error('Reveal:', e); }
-try { setupLazyCharts(); } catch(e){ console.error('Charts:', e); }
-try { setupHeroFade(); } catch(e){ console.error('HeroFade:', e); }
+try { setupFunilHover(); } catch(e){ console.error('FunilHover:', e); }
+
+if (isCaptureContext()){
+  try { prepareForStaticCapture(); } catch(e){ console.error('StaticCapture:', e); window.isPageReady = true; }
+} else {
+  try { setupLazyCharts(); } catch(e){ console.error('Charts:', e); }
+  try { setupHeroFade(); } catch(e){ console.error('HeroFade:', e); }
+  window.isPageReady = true;
+}
+
+/* BOTÃO DE PDF — não gera mais nada no navegador do cliente (era a causa do bug de
+   fundo preto/texto fantasma). Só redireciona pro webhook labsights-pdf-manual, que
+   chama o PDFShift na URL já publicada — mesma solução validada e em produção. */
 try {
-  document.getElementById('downloadPdfBtn').addEventListener('click', async function(){
-    const btn = this;
-    const originalLabel = btn.textContent;
-    btn.textContent = 'Gerando PDF…';
-
-    // Força todo conteúdo lazy (gráficos e reveal) a existir antes de capturar
-    Object.keys(chartRegistry).forEach(id => { if (!chartInstances[id]) buildChart(id); });
-    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
-    await new Promise(r => setTimeout(r, 500)); // respiro para os gráficos desenharem
-
-    // Esconde elementos fixos/sticky que atrapalham a captura (não fazem sentido num PDF estático)
-    const toHide = [
-      document.querySelector('header'),
-      document.getElementById('scrollspy'),
-      document.getElementById('bgScrub'),
-      document.querySelector('.bg-scrim'),
-      document.getElementById('heroScrim'),
-      btn
-    ].filter(Boolean);
-    toHide.forEach(el => el.style.visibility = 'hidden');
-
-    const filename = document.title.replace(/[^\w\sÀ-ÿ-]/g, '').trim() + '.pdf';
-    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-    const target = document.getElementById('dashboardMain');
-
-    try {
-      await html2pdf().set({
-        margin: [8, 8, 8, 8],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: bgColor },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'avoid-all'] }
-      }).from(target).save();
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-      alert('Não foi possível gerar o PDF agora. Tente novamente.');
-    } finally {
-      toHide.forEach(el => el.style.visibility = 'visible');
-      btn.textContent = originalLabel;
-    }
+  const btn = document.getElementById('downloadPdfBtn');
+  if (btn) btn.addEventListener('click', function(){
+    const slug = DASHBOARD_DATA.cliente.slug;
+    const nomeArquivo = encodeURIComponent(`LabSights ${DASHBOARD_DATA.cliente.nome} — ${DASHBOARD_DATA.cliente.mes_extenso}`);
+    window.location.href = `https://n8n.7labmarketing.com.br/webhook/labsights-pdf-manual?cliente_slug=${encodeURIComponent(slug)}&nome_arquivo=${nomeArquivo}`;
   });
 } catch(e){ console.error('PDF button:', e); }
 
