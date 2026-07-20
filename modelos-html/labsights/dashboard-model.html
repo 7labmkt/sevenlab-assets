@@ -16,12 +16,14 @@
     --accent:var(--wine); --glass-bg:rgba(255,255,255,.28); --glass-border:rgba(43,38,34,.08);
     --card-bg:rgba(255,255,255,.6); --card-border:rgba(43,38,34,.1); --divider:rgba(43,38,34,.14);
     --up:#2F7A52; --down:#B3453F;
+    --funil-topo:#587DA8; --funil-meio:#D4A938; --funil-fundo:#8C2726;
   }
   html[data-theme="night"]{
     --bg:var(--night-bg); --text:var(--off-white); --text-muted:rgba(243,237,214,.6);
     --accent:var(--wine-night); --glass-bg:rgba(255,255,255,.035); --glass-border:rgba(243,237,214,.1);
     --card-bg:rgba(255,255,255,.05); --card-border:rgba(243,237,214,.14); --divider:rgba(243,237,214,.16);
     --up:#5FBE8B; --down:#E08A85;
+    --funil-topo:#769BC6; --funil-meio:#E8BD4C; --funil-fundo:#B44F4E;
   }
 
   *{ box-sizing:border-box; margin:0; padding:0; }
@@ -46,7 +48,8 @@
   html[data-theme="night"] .page-title{ color:var(--off-white); opacity:.95; }
   .header-right{ display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; min-width:0; }
   .month-tabs{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
-  .month-tab{ font-size:.72rem; font-weight:700; padding:7px 14px; border-radius:999px; background:var(--card-bg); border:1px solid var(--card-border); cursor:pointer; color:var(--text-muted); }
+  /* Aba do mês anterior é só rótulo informativo — não clicável, sem alert() placeholder */
+  .month-tab{ font-size:.72rem; font-weight:700; padding:7px 14px; border-radius:999px; background:var(--card-bg); border:1px solid var(--card-border); cursor:default; color:var(--text-muted); }
   .month-tab.active{ background:var(--accent); color:var(--off-white); border-color:var(--accent); }
 
   nav.scrollspy{
@@ -86,7 +89,7 @@
 
   .bento-card{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:22px; padding:20px; transition:background .8s ease, border-color .8s ease; }
   /* Evita que o PDF corte um card ao meio na quebra de página */
-  .bento-card, .narrativa, .kpi-card, .funil-stage, .conclusao-col, .campanha-card{ break-inside:avoid; page-break-inside:avoid; }
+  .bento-card, .narrativa, .kpi-card, .funil-visual, .conclusao-col, .campanha-card{ break-inside:avoid; page-break-inside:avoid; }
 
   .kpi-big{ display:flex; flex-direction:column; justify-content:center; }
   .kpi-big .label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-bottom:8px; font-weight:600; }
@@ -113,12 +116,16 @@
   .campanha-metrica{ font-size:.78rem; }
   .campanha-metrica b{ display:block; font-family:'Merriweather',serif; font-weight:900; font-size:1.05rem; color:var(--accent); }
 
-  .funil-stages{ display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
-  .funil-stage{ flex:1; min-width:150px; text-align:center; background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:20px 10px; transition:transform .25s ease, background .8s ease, border-color .8s ease; }
-  .funil-stage .valor{ font-family:'Merriweather',serif; font-weight:900; font-size:1.4rem; color:var(--accent); }
-  .funil-stage .valor-abs{ font-size:.68rem; color:var(--text-muted); }
-  .funil-stage .label{ font-size:.72rem; color:var(--text-muted); margin-top:4px; }
-  .funil-arrow{ align-self:center; font-size:1.2rem; color:var(--text-muted); flex-shrink:0; }
+  /* Funil "flat com profundidade" — trapézios em SVG, cor derivada de --funil-topo/--funil-meio/--funil-fundo
+     (varia por tema dia/noite), com hover/tap revelando o valor absoluto de cada etapa. Generalizado para
+     N estágios, mas a skill sempre monta 3: Visibilidade → Interesse → Intenção. */
+  .funil-visual{ max-width:420px; margin:14px auto 10px; }
+  .funil-visual svg{ width:100%; height:auto; display:block; }
+  .funil-tier-group{ cursor:pointer; transition:filter .2s ease, transform .2s ease; transform-box:fill-box; transform-origin:center; }
+  .funil-tier-group:hover{ filter:saturate(1.35) brightness(1.04); transform:scale(1.045); }
+  .funil-svg-label{ fill:var(--off-white); font-family:'Inter',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .funil-svg-value{ fill:var(--off-white); font-family:'Merriweather',serif; font-weight:900; font-size:19px; }
+  .funil-appendix{ text-align:center; font-size:.78rem; color:var(--text-muted); margin:6px 0 18px; min-height:1.2em; transition:color .3s ease; }
 
   /* Top post — duas molduras retangulares lado a lado (IG + FB). aspect-ratio 2.6/1
      acomoda o print inteiro da tela "Top posts" do Meta (vários posts lado a lado),
@@ -152,8 +159,6 @@
     .cliente-nome{ padding-left:12px; }
   }
   @media (max-width:600px){
-    .funil-stages{ flex-direction:column; }
-    .funil-arrow{ transform:rotate(90deg); }
     nav.scrollspy a{ font-size:.6rem; padding:10px 2px; }
   }
 
@@ -254,6 +259,11 @@ function chartJsType(tipo){
 
 const chartRegistry = {}; const chartInstances = {};
 function registerChart(canvasId, tipo, labels, valores){ chartRegistry[canvasId] = { type: tipo, labels, valores }; }
+/* grafico_mes — comparação categórica com mais de uma série por categoria (ex: "orgânico vs. anúncios",
+   "Instagram vs. Facebook"). Sempre renderiza em barras agrupadas, nunca linha — ligar categorias com uma
+   linha sugeriria uma evolução temporal que não existe. Para 1 série só, use tendencia + tipo:"barras"
+   (registerChart); quando há mais de uma série por categoria, use grafico_mes (esta função). */
+function registerMultiBarChart(canvasId, labels, datasets){ chartRegistry[canvasId] = { type: 'bar_multi', labels, datasets }; }
 
 function renderKpis(kpis){
   return kpis.map(k => `<div class="kpi-card reveal"><div class="valor">${k.valor}</div><div class="label">${k.label}</div></div>`).join('');
@@ -297,6 +307,12 @@ function renderCamada(id, titulo, pergunta, camada){
   const campanhasHtml = camada.campanhas ? renderCampanhasGrid(camada.campanhas) : '';
 
   let bodyHtml = '';
+  let graficoMesHtml = '';
+  if (camada.grafico_mes){
+    const canvasId = `chart-mes-${id}`;
+    registerMultiBarChart(canvasId, camada.grafico_mes.labels, camada.grafico_mes.datasets);
+    graficoMesHtml = `<div class="bento-card reveal" style="margin-bottom:16px;"><div class="chart-title">${camada.grafico_mes.titulo||''}</div><div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div></div>`;
+  }
   if (camada.kpis && camada.kpis.length === 1 && camada.tendencia){
     const canvasId = `chart-${id}`;
     registerChart(canvasId, camada.tendencia.tipo || 'linha', camada.tendencia.labels, camada.tendencia.valores);
@@ -313,7 +329,7 @@ function renderCamada(id, titulo, pergunta, camada){
           <div class="chart-title">${camada.tendencia.titulo || ''}</div>
           <div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div>
         </div>
-      </div>`;
+      </div>` + graficoMesHtml;
   } else {
     const kpisHtml = camada.kpis && camada.kpis.length ? `<div class="kpi-row">${renderKpis(camada.kpis)}</div>` : '';
     let chartHtml = '';
@@ -322,7 +338,7 @@ function renderCamada(id, titulo, pergunta, camada){
       registerChart(canvasId, camada.tendencia.tipo || 'linha', camada.tendencia.labels, camada.tendencia.valores);
       chartHtml = `<div class="bento-card reveal" style="margin-bottom:16px;"><div class="chart-title">${camada.tendencia.titulo||''}</div><div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div></div>`;
     }
-    bodyHtml = kpisHtml + chartHtml;
+    bodyHtml = kpisHtml + chartHtml + graficoMesHtml;
   }
 
   const topPostHtml = renderTopPost(camada.top_post);
@@ -337,46 +353,82 @@ function renderCamada(id, titulo, pergunta, camada){
       ${topPostHtml}
     </section>`;
 }
-function funilDiscSvg(accent, index){
-  const larguras = [86, 62, 40]; // taper visual do funil — do topo (maior) ao fundo (menor)
-  const w = larguras[index] ?? 40;
-  const h = w * 0.34;
-  const corTopo = shadeColor(accent, index * 8);
-  const corBorda = shadeColor(accent, -18 - index*4);
-  return `
-    <svg class="funil-disc" viewBox="0 0 100 ${Math.round(h+18)}" width="${w}" style="display:block;margin:0 auto 10px;">
-      <ellipse cx="50" cy="${Math.round(h/2)+12}" rx="46" ry="${(h/2).toFixed(1)}" fill="${corBorda}" opacity=".55"></ellipse>
-      <ellipse cx="50" cy="${Math.round(h/2)+6}" rx="46" ry="${(h/2).toFixed(1)}" fill="${corTopo}"></ellipse>
-    </svg>`;
+function funilPalette(){
+  const style = getComputedStyle(document.documentElement);
+  const topo = (style.getPropertyValue('--funil-topo') || '').trim() || '#587DA8';
+  const meio = (style.getPropertyValue('--funil-meio') || '').trim() || '#D4A938';
+  const fundo = (style.getPropertyValue('--funil-fundo') || '').trim() || '#8C2726';
+  return [topo, meio, fundo];
 }
 function renderFunil(funil){
-  const accent = currentAccent();
-  const stages = funil.estagios.map((e,i,arr) => {
-    const arrow = i < arr.length - 1 ? '<div class="funil-arrow">→</div>' : '';
-    const absHtml = e.valor_abs ? `<div class="valor-abs">${e.valor_abs}</div>` : '';
-    return `<div class="funil-stage reveal" data-stage="${i}">${funilDiscSvg(accent, i)}<div class="valor">${e.valor}</div>${absHtml}<div class="label">${e.label}</div></div>${arrow}`;
+  const n = funil.estagios.length;
+  const palette = funilPalette();
+  const cx = 210, ry = 16, gap = 25, topPad = 30;
+  let rxTop = 168;
+  /* A altura de cada camada é proporcional à sua largura (em vez de fixa), mantendo a mesma
+     "achatura" visual do topo também nas camadas mais estreitas — evita o efeito de balde alto
+     no fundo do funil. */
+  const bandHBase = 100, aspect = bandHBase / rxTop, bandHMin = 56;
+  const rows = [];
+  let yCursor = topPad;
+  for (let i = 0; i < n; i++){
+    const rxBottom = rxTop * 0.80;
+    const bandH = Math.max(bandHMin, aspect * ((rxTop + rxBottom) / 2));
+    const yTop = yCursor;
+    const yBottom = yTop + bandH;
+    const fill = palette[i % palette.length];
+    const rim = shadeColor(fill, -38);
+    rows.push({ i, rxTop, rxBottom, yTop, yBottom, fill, rim, estagio: funil.estagios[i] });
+    yCursor = yBottom + gap;
+    rxTop = rxBottom * 0.82;
+  }
+  const totalH = rows[rows.length - 1].yBottom + 20;
+
+  const groups = rows.slice().reverse().map(r => {
+    const appendix = (r.estagio.valor_abs || '').replace(/"/g, '&quot;');
+    const d = `M${cx - r.rxTop},${r.yTop} L${cx - r.rxBottom},${r.yBottom} A${r.rxBottom},${ry} 0 0,0 ${cx + r.rxBottom},${r.yBottom} L${cx + r.rxTop},${r.yTop} Z`;
+    const textCenter = r.yTop + (r.yBottom - r.yTop + ry) / 2;
+    return `
+      <g class="funil-tier-group" data-idx="${r.i}" data-appendix="${appendix}">
+        <path d="${d}" fill="${r.fill}"/>
+        <ellipse cx="${cx}" cy="${r.yTop}" rx="${r.rxTop}" ry="${ry}" fill="${r.rim}"/>
+        <text x="${cx}" y="${textCenter - 3}" text-anchor="middle" class="funil-svg-label">${r.estagio.label}</text>
+        <text x="${cx}" y="${textCenter + 19}" text-anchor="middle" class="funil-svg-value">${r.estagio.valor}</text>
+      </g>`;
   }).join('');
+
   return `
     <section class="camada" id="funil">
       <div class="camada-header"><h2>⚡ Velocidade do Funil</h2></div>
-      <p class="pergunta-guia">Efetividade de cada etapa do funil</p>
-      <div class="funil-stages">${stages}</div>
+      <p class="pergunta-guia">Quantas pessoas avançam de uma etapa para a próxima</p>
+      <div class="funil-visual reveal">
+        <svg viewBox="0 0 420 ${totalH}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">${groups}</svg>
+      </div>
+      <div class="funil-appendix" id="funilAppendix">Passe o mouse (ou toque) numa etapa para ver o número absoluto.</div>
       <div class="narrativa reveal">${funil.diagnostico}</div>
     </section>`;
 }
 function refreshFunilColors(){
-  const accent = currentAccent();
-  document.querySelectorAll('.funil-stage').forEach(el => {
-    const i = parseInt(el.dataset.stage, 10) || 0;
-    const ellipses = el.querySelectorAll('svg.funil-disc ellipse');
-    if (ellipses[0]) ellipses[0].setAttribute('fill', shadeColor(accent, -18 - i*4));
-    if (ellipses[1]) ellipses[1].setAttribute('fill', shadeColor(accent, i*8));
+  const palette = funilPalette();
+  document.querySelectorAll('.funil-tier-group').forEach(g => {
+    const i = parseInt(g.dataset.idx, 10) || 0;
+    const fill = palette[i % palette.length];
+    const path = g.querySelector('path');
+    const ellipse = g.querySelector('ellipse');
+    if (path) path.setAttribute('fill', fill);
+    if (ellipse) ellipse.setAttribute('fill', shadeColor(fill, -38));
   });
 }
 function setupFunilHover(){
-  document.querySelectorAll('.funil-stage').forEach(el => {
-    el.addEventListener('mouseenter', () => { el.style.transform = 'translateY(-4px)'; });
-    el.addEventListener('mouseleave', () => { el.style.transform = ''; });
+  const appendixEl = document.getElementById('funilAppendix');
+  if (!appendixEl) return;
+  const defaultText = appendixEl.textContent;
+  document.querySelectorAll('.funil-tier-group').forEach(g => {
+    const showAppendix = () => { appendixEl.textContent = g.dataset.appendix || defaultText; };
+    const hideAppendix = () => { appendixEl.textContent = defaultText; };
+    g.addEventListener('mouseenter', showAppendix);
+    g.addEventListener('mouseleave', hideAppendix);
+    g.addEventListener('click', showAppendix);
   });
 }
 function renderConclusao(c){
@@ -401,8 +453,6 @@ function renderStaticContent(data){
     monthTabs.innerHTML += `<div class="month-tab" id="mesAnteriorTab">${data.navegacao.mes_anterior_label}</div>`;
   }
   monthTabs.innerHTML += `<div class="month-tab active">${data.cliente.mes_curto}</div>`;
-  const anterior = document.getElementById('mesAnteriorTab');
-  if (anterior) anterior.addEventListener('click', () => alert('Na versão publicada, isso troca o conteúdo via fetch() para o mês anterior, sem recarregar a página.'));
 
   const saudacao = data.cliente.saudacao || `Olá, ${data.cliente.nome.split(' ')[0]}!`;
   const main = document.getElementById('dashboardMain');
@@ -434,9 +484,30 @@ function buildChart(canvasId){
   if (!spec || !canvas) return;
   const accent = currentAccent();
   const theme = chartThemeColors();
-  const jsType = chartJsType(spec.type);
   const capturing = document.documentElement.classList.contains('pdf-capturing');
 
+  if (spec.type === 'bar_multi'){
+    const datasets = spec.datasets.map((ds, i) => ({
+      label: ds.label, data: ds.valores,
+      backgroundColor: shadeColor(accent, i === 0 ? 0 : -22 * i), borderRadius: 6
+    }));
+    chartInstances[canvasId] = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: spec.labels, datasets },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        animation: capturing ? false : { duration:900, easing:'easeOutQuart' },
+        plugins:{ legend:{ display: datasets.length > 1, position:'bottom', labels:{ color: theme.text, font:{size:10}, boxWidth:12 } } },
+        scales:{
+          y:{ beginAtZero:true, ticks:{ font:{size:9}, color: theme.text, maxTicksLimit:5, callback:(v)=>formatShort(v) }, grid:{ color: theme.grid } },
+          x:{ ticks:{ font:{size:9}, color: theme.text }, grid:{ display:false } }
+        }
+      }
+    });
+    return;
+  }
+
+  const jsType = chartJsType(spec.type);
   let dataset;
   if (jsType === 'doughnut'){
     dataset = { data: spec.valores, backgroundColor: spec.valores.map((_, i) => shadeColor(accent, i * -14)), borderWidth: 0 };
@@ -463,6 +534,15 @@ function refreshChartColors(){
   const theme = chartThemeColors();
   Object.entries(chartInstances).forEach(([id, chart]) => {
     const spec = chartRegistry[id];
+    if (spec.type === 'bar_multi'){
+      chart.data.datasets.forEach((ds, i) => { ds.backgroundColor = shadeColor(accent, i === 0 ? 0 : -22 * i); });
+      if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = theme.text;
+      if (chart.options.scales?.y?.ticks) chart.options.scales.y.ticks.color = theme.text;
+      if (chart.options.scales?.y?.grid) chart.options.scales.y.grid.color = theme.grid;
+      if (chart.options.scales?.x?.ticks) chart.options.scales.x.ticks.color = theme.text;
+      chart.update('none');
+      return;
+    }
     const jsType = chartJsType(spec.type);
     if (jsType === 'doughnut'){
       chart.data.datasets[0].backgroundColor = spec.valores.map((_, i) => shadeColor(accent, i * -14));
