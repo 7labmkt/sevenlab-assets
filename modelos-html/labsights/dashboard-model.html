@@ -645,7 +645,8 @@ function setupHeroFade(){
    headless do PDFShift (Puppeteer sempre expõe navigator.webdriver=true) ou o próprio
    modo de impressão, e força tudo a aparecer de uma vez (sem esperar scroll), sem
    animação de gráfico no meio do caminho — evita o bug antigo de captura pela metade. */
-window.isPageReady = false;
+window.__pageReadyFlag = false;
+window.isPageReady = function(){ return window.__pageReadyFlag; };
 function isCaptureContext(){
   try { return navigator.webdriver === true || window.matchMedia('print').matches; }
   catch(e){ return false; }
@@ -654,7 +655,7 @@ function prepareForStaticCapture(){
   document.documentElement.classList.add('pdf-capturing');
   Object.keys(chartRegistry).forEach(id => { if (!chartInstances[id]) buildChart(id); });
   document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
-  window.isPageReady = true;
+  window.__pageReadyFlag = true;
 }
 
 /* INIT */
@@ -666,11 +667,11 @@ try { setupReveal(); } catch(e){ console.error('Reveal:', e); }
 try { setupFunilHover(); } catch(e){ console.error('FunilHover:', e); }
 
 if (isCaptureContext()){
-  try { prepareForStaticCapture(); } catch(e){ console.error('StaticCapture:', e); window.isPageReady = true; }
+  try { prepareForStaticCapture(); } catch(e){ console.error('StaticCapture:', e); window.__pageReadyFlag = true; }
 } else {
   try { setupLazyCharts(); } catch(e){ console.error('Charts:', e); }
   try { setupHeroFade(); } catch(e){ console.error('HeroFade:', e); }
-  window.isPageReady = true;
+  window.__pageReadyFlag = true;
 }
 
 /* BOTÃO DE PDF — não gera mais nada no navegador do cliente (era a causa do bug de
