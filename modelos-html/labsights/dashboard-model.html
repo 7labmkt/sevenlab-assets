@@ -466,7 +466,7 @@ function renderStaticContent(data){
     ${renderCamada('visibilidade', 'Visibilidade', 'A marca está sendo vista?', data.camadas.visibilidade)}
     ${renderCamada('interesse', 'Interesse', 'Estão prestando atenção nela?', data.camadas.interesse)}
     ${renderCamada('intencao', 'Intenção', 'Querem falar com a empresa?', data.camadas.intencao)}
-    ${renderFunil(data.velocidade_funil)}
+    ${data.velocidade_funil ? renderFunil(data.velocidade_funil) : ''}
     ${renderConclusao(data.conclusao)}
   `;
 }
