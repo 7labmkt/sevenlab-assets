@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{NOME_CLIENTE}} — LabSights</title>
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/modelos-html/labsights/assets/favicon.png">
+<!-- Open Graph — {{NOME_CLIENTE}} já é substituído pela skill no Passo 8 (mesmo mecanismo do <title>).
+     og:description fica com texto fixo por enquanto: a sinopse real do mês só existe hoje dentro do
+     JSON (DASHBOARD_DATA), preenchido via JS em runtime — e crawler de link (WhatsApp/Facebook) lê
+     o HTML cru, sem rodar JS (mesmo motivo do bug do <title> corrigido no Bloco 16 do Notion). Deixar
+     a sinopse aqui personalizada exigiria a skill substituir mais um placeholder no Passo 8 — decisão
+     de skill, fora do escopo desta rodada. Registrado como próximo passo no final da resposta. -->
+<meta property="og:title" content="{{NOME_CLIENTE}} — LabSights">
+<meta property="og:description" content="Relatório mensal de marketing — Sevenlab. Veja como a marca está performando este mês.">
+<meta property="og:image" content="https://raw.githubusercontent.com/7labmkt/sevenlab-assets/main/brand/og-image.png">
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,700;0,900;1,700;1,900&family=Inter:wght@400;500;600;700&display=swap');
@@ -49,8 +58,12 @@
   .header-right{ display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; min-width:0; }
   .month-tabs{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
   /* Aba do mês anterior é só rótulo informativo — não clicável, sem alert() placeholder */
-  .month-tab{ font-size:.72rem; font-weight:700; padding:7px 14px; border-radius:999px; background:var(--card-bg); border:1px solid var(--card-border); cursor:default; color:var(--text-muted); }
+  .month-tab{ font-size:.72rem; font-weight:700; padding:7px 14px; border-radius:999px; background:var(--card-bg); border:1px solid var(--card-border); cursor:default; color:var(--text-muted); transition:background .2s ease, color .2s ease; }
   .month-tab.active{ background:var(--accent); color:var(--off-white); border-color:var(--accent); }
+  /* Item 10: só os month-tabs com dado real por trás (mes_anterior_arquivo presente, ou o mês atual,
+     que sempre pode voltar a ser mostrado) ganham essa classe — o resto continua cursor:default */
+  .month-tab.clickable{ cursor:pointer; }
+  .month-tab.clickable:not(.active):hover{ background:var(--divider); color:var(--text); }
 
   nav.scrollspy{
     position:sticky; z-index:29; display:flex; width:100%; top:56px; /* ajustado via JS conforme a altura real do header */
@@ -89,7 +102,7 @@
 
   .bento-card{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:22px; padding:20px; transition:background .8s ease, border-color .8s ease; }
   /* Evita que o PDF corte um card ao meio na quebra de página */
-  .bento-card, .narrativa, .kpi-card, .funil-visual, .conclusao-col, .campanha-card{ break-inside:avoid; page-break-inside:avoid; }
+  .bento-card, .narrativa, .kpi-card, .funil-visual, .conclusao-col, .campanha-card, .postit-card{ break-inside:avoid; page-break-inside:avoid; }
 
   .kpi-big{ display:flex; flex-direction:column; justify-content:center; }
   .kpi-big .label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-bottom:8px; font-weight:600; }
@@ -115,6 +128,21 @@
   .campanha-metricas{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
   .campanha-metrica{ font-size:.78rem; }
   .campanha-metrica b{ display:block; font-family:'Merriweather',serif; font-weight:900; font-size:1.05rem; color:var(--accent); }
+
+  /* Item 12 — tabela expansível por grupo (conjunto/anúncio), pra campanhas com mais de 1 conjunto
+     ou 1 conjunto com mais de 1 anúncio. Rótulos genéricos no dado (conjunto/anuncio); a tradução
+     por rede (Conjunto vs. Grupo de Anúncios) acontece só aqui, no texto renderizado. */
+  .detalhamento-table-wrap{ overflow-x:auto; }
+  .detalhamento-table{ width:100%; border-collapse:collapse; font-size:.82rem; }
+  .detalhamento-table th{ text-align:left; padding:8px 10px; font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; color:var(--text-muted); font-weight:700; border-bottom:1px solid var(--divider); white-space:nowrap; }
+  .detalhamento-table td{ padding:9px 10px; border-bottom:1px solid var(--divider); }
+  .group-row{ cursor:pointer; font-weight:700; transition:background .15s ease; }
+  .group-row:hover{ background:var(--card-border); }
+  .group-row .toggle-icon{ display:inline-block; margin-right:6px; transition:transform .2s ease; }
+  .group-row.open .toggle-icon{ transform:rotate(90deg); }
+  .child-row td:first-child{ padding-left:28px; color:var(--text-muted); font-weight:400; }
+  .rede-divisor{ font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); margin:18px 0 8px; padding-top:14px; border-top:1px solid var(--divider); }
+  .rede-divisor:first-child{ margin-top:0; padding-top:0; border-top:none; }
 
   /* Funil "flat com profundidade" — trapézios em SVG, cor derivada de --funil-topo/--funil-meio/--funil-fundo
      (varia por tema dia/noite), com hover/tap revelando o valor absoluto de cada etapa. Generalizado para
@@ -143,6 +171,38 @@
   .conclusao-col h4{ font-size:.85rem; margin-bottom:10px; }
   .conclusao-col ul{ padding-left:18px; font-size:.85rem; line-height:1.6; color:var(--text-muted); }
 
+  /* Histórico de Solicitações — card post-it (Notion, Bloco 26/Pendência 2). Entra como mais um
+     item dentro do mesmo grid .conclusao-cols (auto-fit), lado a lado com as 3 colunas de
+     Conclusão — sem precisar de layout dedicado. Some sozinho quando não há pedidos no mês
+     (mesma lógica do top_post: null). */
+  /* Histórico de Solicitações — card post-it (Notion, Bloco 26/Pendência 2).
+     Correção de layout (Josef, feedback real em desktop): NÃO fica mais dentro do grid
+     .conclusao-cols junto com as 3 colunas de Conclusão — testado assim e ficou apertado
+     (4 colunas de ~220px, badge quebrando linha, texto empilhado) e ainda esticava os outros
+     3 cards pra acompanhar a altura do card de histórico (grid estica todo item da mesma linha
+     pra mesma altura por padrão). Virou bloco próprio, full-width, abaixo da grade — cada item
+     tem espaço de sobra e nunca força altura em outro card. */
+  .postit-card{ background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:20px; padding:20px 24px; margin-top:16px; transition:background .8s ease, border-color .8s ease; }
+  .postit-card h4{ font-size:.9rem; margin-bottom:6px; }
+  .postit-resumo{ font-size:.78rem; color:var(--text-muted); margin-bottom:14px; }
+  .postit-list{ display:flex; flex-direction:column; gap:8px; }
+  .postit-item{ display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:center; padding:9px 12px; border-radius:10px; border:1.5px solid transparent; font-size:.82rem; transition:border-color .3s ease; }
+  /* Destaque de pedido parado (60+ dias sem virar "entregue") — trocado de borda lateral fina
+     pra contorno do bloco inteiro (feedback do Josef: a borda lateral passava despercebida).
+     --funil-meio já é uma CSS var que muda de tom entre dia/noite, então funciona nos dois temas
+     sem precisar de regra extra. */
+  .postit-item.parado{ border-color:var(--funil-meio); }
+  .postit-data{ font-size:.74rem; color:var(--text-muted); white-space:nowrap; }
+  .postit-titulo{ line-height:1.4; }
+  .postit-solicitante{ color:var(--text-muted); font-size:.75rem; }
+  .postit-badge{ font-size:.68rem; font-weight:700; padding:4px 12px; border-radius:999px; color:var(--off-white); white-space:nowrap; }
+  /* Paleta semáforo já padronizada no Slack (Notion, Bloco 26) — pedido=vermelho,
+     andamento=amarelo, entregue=verde. --down/--funil-meio/--up já são CSS vars com valores
+     diferentes por tema (dia/noite), então a cor certa sai automática nos dois temas. */
+  .postit-badge.pedido{ background:var(--down); }
+  .postit-badge.andamento{ background:var(--funil-meio); }
+  .postit-badge.entregue{ background:var(--up); }
+
   footer{ text-align:center; padding:50px 24px 34px; margin-top:20px; background:#102B1F; color:var(--off-white); transition:background .8s ease; }
   html[data-theme="night"] footer{ background:var(--charcoal); }
   footer .mantra{ font-family:'Merriweather',serif; font-style:italic; font-size:1rem; opacity:.9; margin-bottom:20px; }
@@ -170,6 +230,11 @@
   }
   html.pdf-capturing .reveal{ opacity:1 !important; transform:none !important; }
   @media print{
+    /* Causa raiz do conteúdo colado nas bordas a partir da pág. 2: sem @page, o Chrome headless
+       do PDFShift só respeita o padding do <main> na primeira página — a partir da 2ª, cada nova
+       página impressa não tem nenhuma margem própria. @page define a margem física da folha,
+       repetida em toda página, de forma consistente (é a única forma de resolver isso via CSS). */
+    @page{ margin:20mm 15mm 16mm 15mm; }
     header, nav.scrollspy, #bgScrub, .bg-scrim, #heroScrim, #downloadPdfBtn{ display:none !important; }
     .reveal{ opacity:1 !important; transform:none !important; }
     body{ background:var(--bg) !important; }
@@ -233,12 +298,36 @@ function formatShort(value){
   if (abs >= 1000) return (value/1000).toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' mil';
   return value.toLocaleString('pt-BR');
 }
-function calcDelta(valores){
-  if (!valores || valores.length < 2) return null;
-  const last = valores[valores.length-1], prev = valores[valores.length-2];
-  if (!prev) return null;
-  const pct = ((last - prev) / prev) * 100;
-  return { pct: Math.round(pct*10)/10, up: pct >= 0 };
+/* calcDelta(tendencia.valores) existia aqui e foi removida nesta rodada: o mecanismo antigo de
+   delta (baseado num array `tendencia` separado, só disparava com exatamente 1 KPI) foi
+   substituído pela extração via regex abaixo (item 13). Nenhum outro trecho do template usava
+   essa função. */
+/* Item 13 (Notion, item 13 das Pendências): extrai o percentual já embutido no texto do valor
+   (ex: "23,0 mil (+148,7%)") em vez de depender de um array `tendencia` separado. Qualquer KPI
+   com esse padrão vira elegível a kpi-big; o que não tiver, cai no kpi-row pequeno (fallback
+   seguro, sem quebrar nada — comportamento idêntico ao de hoje para todo dado que não bater
+   com a regex). Formato aceito: sinal +/- dentro de parênteses, seguido de número pt-BR e "%". */
+const DELTA_NO_VALOR_REGEX = /\(\s*([+-])\s*([\d.,]+)\s*%\s*\)/;
+function extrairDeltaDoValor(valorTexto){
+  if (!valorTexto) return null;
+  const m = String(valorTexto).match(DELTA_NO_VALOR_REGEX);
+  if (!m) return null;
+  const numero = parseFloat(m[2].replace(/\./g,'').replace(',', '.'));
+  if (isNaN(numero)) return null;
+  return { pct: numero, up: m[1] === '+' };
+}
+function valorSemDelta(valorTexto){
+  return String(valorTexto).replace(DELTA_NO_VALOR_REGEX, '').trim();
+}
+function renderKpiBig(k){
+  const delta = extrairDeltaDoValor(k.valor);
+  const deltaHtml = delta ? `<div class="delta ${delta.up?'up':'down'}">${delta.up?'▲':'▼'} ${Math.abs(delta.pct).toLocaleString('pt-BR',{maximumFractionDigits:1})}% vs. mês anterior</div>` : '';
+  return `
+    <div class="bento-card kpi-big span-4 reveal">
+      <div class="label">${k.label}</div>
+      <div class="value">${valorSemDelta(k.valor)}</div>
+      ${deltaHtml}
+    </div>`;
 }
 
 function shadeColor(hex, percent){
@@ -289,6 +378,108 @@ function renderCampanhasGrid(campanhas){
   }).join('');
   return `<div class="campanhas-grid">${cards}</div>`;
 }
+
+/* ── Item 12: decisão bentô vs. tabela expansível ──
+   Regras confirmadas por Josef (Notion, item 12):
+   A) campanha com 1 conjunto e 1 anúncio (ou sem a chave `conjuntos`/`anuncios` — dado antigo,
+      compatível) → bentô simples (renderCampanhasGrid, sem mudança nenhuma pra dado já publicado)
+   B) mais de 1 conjunto, OU 1 conjunto com mais de 1 anúncio → tabela expansível
+   C) anúncios soltos sem camada de conjunto (`anuncios` direto na campanha, sem `conjuntos`):
+      mais de 3 → o nome da campanha vira o próprio toggle (grupo sintético); 3 ou menos → bentô
+   D) rótulo do nível intermediário traduzido só aqui, no texto — nunca na estrutura do dado
+      (Meta = "Conjunto"; Google/TikTok Ads = "Grupo de Anúncios") */
+function rotuloNivelConjunto(rede){
+  return (rede === 'google_ads' || rede === 'tiktok_ads') ? 'Grupo de Anúncios' : 'Conjunto';
+}
+function rotuloRede(rede){
+  if (rede === 'google_ads') return 'Google Ads';
+  if (rede === 'tiktok_ads') return 'TikTok Ads';
+  return 'Meta Ads';
+}
+function normalizarConjuntos(c){
+  if (c.conjuntos && c.conjuntos.length) return c.conjuntos;
+  if (Array.isArray(c.anuncios) && c.anuncios.length) return [{ nome: c.nome, metricas: c.metricas, anuncios: c.anuncios }];
+  return [];
+}
+function nivelVisualizacaoCampanha(c){
+  if (Array.isArray(c.anuncios) && !c.conjuntos){
+    return c.anuncios.length > 3 ? 'tabela' : 'bento';
+  }
+  if (!c.conjuntos || !c.conjuntos.length) return 'bento';
+  if (c.conjuntos.length === 1 && (!c.conjuntos[0].anuncios || c.conjuntos[0].anuncios.length <= 1)) return 'bento';
+  return 'tabela';
+}
+let detalhamentoContador = 0; // garante id único por grupo mesmo entre blocos de rede diferentes
+function renderCampanhaTabela(c){
+  const conjuntos = normalizarConjuntos(c);
+  const rotuloNivel = rotuloNivelConjunto(c.rede);
+  const rows = conjuntos.map(g => {
+    const groupId = `tbl-g${detalhamentoContador++}`;
+    const gm = g.metricas || {};
+    const childRows = (g.anuncios || []).map(a => {
+      const am = a.metricas || {};
+      return `
+        <tr class="child-row" data-group="${groupId}" style="display:none;">
+          <td>${a.nome}</td>
+          <td>${am.alcance ?? '—'}</td>
+          <td>${am.impressoes ?? '—'}</td>
+          <td>${am.valor_investido ?? '—'}</td>
+          <td>${am.custo_por_resultado ?? '—'}</td>
+        </tr>`;
+    }).join('');
+    return `
+      <tr class="group-row" data-target="${groupId}">
+        <td><span class="toggle-icon">▸</span>${g.nome}</td>
+        <td>${gm.alcance ?? '—'}</td>
+        <td>${gm.impressoes ?? '—'}</td>
+        <td>${gm.valor_investido ?? '—'}</td>
+        <td>${gm.custo_por_resultado ?? '—'}</td>
+      </tr>${childRows}`;
+  }).join('');
+  return `
+    <div class="bento-card campanha-card reveal" style="margin-bottom:14px;">
+      <h4>${c.nome}</h4>
+      ${c.objetivo ? `<p class="objetivo">${c.objetivo}</p>` : ''}
+      <div class="detalhamento-table-wrap">
+        <table class="detalhamento-table">
+          <thead><tr><th>${rotuloNivel}</th><th>Alcance</th><th>Impressões</th><th>Valor investido</th><th>Custo/resultado</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+function renderBlocoCampanhas(campanhas){
+  const simples = campanhas.filter(c => nivelVisualizacaoCampanha(c) !== 'tabela');
+  const complexas = campanhas.filter(c => nivelVisualizacaoCampanha(c) === 'tabela');
+  let html = '';
+  if (simples.length) html += renderCampanhasGrid(simples);
+  if (complexas.length) html += complexas.map(renderCampanhaTabela).join('');
+  return html;
+}
+/* Ponto de entrada — separa por rede quando o cliente roda mais de uma ao mesmo tempo (Meta +
+   Google Ads na mesma camada), com título de rede + divisória, sem nenhuma lógica além disso
+   (decisão confirmada por Josef, item 12/D). Com uma rede só, comportamento idêntico a hoje. */
+function renderCampanhas(campanhas){
+  if (!campanhas || !campanhas.length) return '';
+  detalhamentoContador = 0;
+  const redes = [...new Set(campanhas.map(c => c.rede || 'meta'))];
+  if (redes.length <= 1) return renderBlocoCampanhas(campanhas);
+  return redes.map(rede => `
+    <div class="rede-divisor">${rotuloRede(rede)}</div>
+    ${renderBlocoCampanhas(campanhas.filter(c => (c.rede || 'meta') === rede))}
+  `).join('');
+}
+function setupDetalhamentoToggle(){
+  document.querySelectorAll('.group-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const alvo = row.dataset.target;
+      const aberto = row.classList.toggle('open');
+      document.querySelectorAll(`.child-row[data-group="${alvo}"]`).forEach(cr => {
+        cr.style.display = aberto ? '' : 'none';
+      });
+    });
+  });
+}
 function renderTopPost(topPost){
   if (!topPost || (!topPost.imagem_ig && !topPost.imagem_fb)) return '';
   const legendaPadrao = 'Publicação em destaque no mês';
@@ -304,7 +495,7 @@ function renderCamada(id, titulo, pergunta, camada){
   if (!camada || camada.ativa === false) return '';
   const tagHtml = camada.tag ? `<span class="tag-chip">${camada.tag}</span>` : '';
   const subtituloHtml = camada.subtitulo_tag ? `<div class="subtitulo-tag">${camada.subtitulo_tag}</div>` : '';
-  const campanhasHtml = camada.campanhas ? renderCampanhasGrid(camada.campanhas) : '';
+  const campanhasHtml = camada.campanhas ? renderCampanhas(camada.campanhas) : '';
 
   let bodyHtml = '';
   let graficoMesHtml = '';
@@ -313,33 +504,19 @@ function renderCamada(id, titulo, pergunta, camada){
     registerMultiBarChart(canvasId, camada.grafico_mes.labels, camada.grafico_mes.datasets);
     graficoMesHtml = `<div class="bento-card reveal" style="margin-bottom:16px;"><div class="chart-title">${camada.grafico_mes.titulo||''}</div><div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div></div>`;
   }
-  if (camada.kpis && camada.kpis.length === 1 && camada.tendencia){
+  const kpisTodos = camada.kpis || [];
+  const kpisBig = kpisTodos.filter(k => extrairDeltaDoValor(k.valor));
+  const kpisNormais = kpisTodos.filter(k => !extrairDeltaDoValor(k.valor));
+
+  const bigHtml = kpisBig.length ? `<div class="bento" style="margin-bottom:16px;">${kpisBig.map(renderKpiBig).join('')}</div>` : '';
+  const kpisHtml = kpisNormais.length ? `<div class="kpi-row">${renderKpis(kpisNormais)}</div>` : '';
+  let chartHtml = '';
+  if (camada.tendencia){
     const canvasId = `chart-${id}`;
     registerChart(canvasId, camada.tendencia.tipo || 'linha', camada.tendencia.labels, camada.tendencia.valores);
-    const delta = calcDelta(camada.tendencia.valores);
-    const deltaHtml = delta ? `<div class="delta ${delta.up?'up':'down'}">${delta.up?'▲':'▼'} ${Math.abs(delta.pct)}% vs. mês anterior</div>` : '';
-    bodyHtml = `
-      <div class="bento">
-        <div class="bento-card kpi-big span-4 reveal">
-          <div class="label">${camada.kpis[0].label}</div>
-          <div class="value">${camada.kpis[0].valor}</div>
-          ${deltaHtml}
-        </div>
-        <div class="bento-card span-8 reveal">
-          <div class="chart-title">${camada.tendencia.titulo || ''}</div>
-          <div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div>
-        </div>
-      </div>` + graficoMesHtml;
-  } else {
-    const kpisHtml = camada.kpis && camada.kpis.length ? `<div class="kpi-row">${renderKpis(camada.kpis)}</div>` : '';
-    let chartHtml = '';
-    if (camada.tendencia){
-      const canvasId = `chart-${id}`;
-      registerChart(canvasId, camada.tendencia.tipo || 'linha', camada.tendencia.labels, camada.tendencia.valores);
-      chartHtml = `<div class="bento-card reveal" style="margin-bottom:16px;"><div class="chart-title">${camada.tendencia.titulo||''}</div><div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div></div>`;
-    }
-    bodyHtml = kpisHtml + chartHtml + graficoMesHtml;
+    chartHtml = `<div class="bento-card reveal" style="margin-bottom:16px;"><div class="chart-title">${camada.tendencia.titulo||''}</div><div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div></div>`;
   }
+  bodyHtml = bigHtml + kpisHtml + chartHtml + graficoMesHtml;
 
   const topPostHtml = renderTopPost(camada.top_post);
 
@@ -419,6 +596,10 @@ function refreshFunilColors(){
     if (ellipse) ellipse.setAttribute('fill', shadeColor(fill, -38));
   });
 }
+/* Item 4 (Notion, Bloco 14): o mecanismo de hover já existe e mostra o texto livre de
+   estagio.valor_abs — nenhuma mudança de template era necessária aqui. O que falta é a skill
+   escrever a composição de redes (ex: "Inclui Instagram + Facebook") dentro desse mesmo texto —
+   decisão de conteúdo, não de código, e fora do escopo desta rodada de template. */
 function setupFunilHover(){
   const appendixEl = document.getElementById('funilAppendix');
   if (!appendixEl) return;
@@ -431,7 +612,42 @@ function setupFunilHover(){
     g.addEventListener('click', showAppendix);
   });
 }
-function renderConclusao(c){
+function formatarDataCurta(dataIso){
+  // AAAA-MM-DD -> DD/MM (formato brasileiro curto — a data ISO completa ocupava espaço
+  // demais na coluna estreita do card; o ano fica implícito, é sempre o relatório do mês)
+  const partes = String(dataIso || '').split('-');
+  if (partes.length !== 3) return dataIso || '';
+  const [, mes, dia] = partes;
+  return `${dia}/${mes}`;
+}
+function renderHistoricoSolicitacoes(pedidos){
+  if (!pedidos || !pedidos.length) return '';
+  const badgeLabel = { pedido:'Pedido', andamento:'Andamento', entregue:'Entregue' };
+  const counts = { pedido:0, andamento:0, entregue:0 };
+  pedidos.forEach(p => { if (counts[p.status] != null) counts[p.status]++; });
+  const resumoParts = [];
+  if (counts.entregue) resumoParts.push(`${counts.entregue} entregue${counts.entregue>1?'s':''}`);
+  if (counts.andamento) resumoParts.push(`${counts.andamento} em andamento`);
+  if (counts.pedido) resumoParts.push(`${counts.pedido} pendente${counts.pedido>1?'s':''}`);
+  const hoje = new Date();
+  const itens = pedidos.map(p => {
+    const status = p.status && badgeLabel[p.status] ? p.status : 'pedido';
+    const solic = p.solicitante ? `<span class="postit-solicitante"> · ${p.solicitante}</span>` : '';
+    let parado = false;
+    if (status !== 'entregue' && p.data){
+      const dias = Math.floor((hoje - new Date(p.data + 'T00:00:00')) / 86400000);
+      parado = dias >= 60;
+    }
+    return `<div class="postit-item${parado ? ' parado' : ''}"><div class="postit-data">${formatarDataCurta(p.data)}</div><div><div class="postit-titulo">${p.titulo}${solic}</div></div><div class="postit-badge ${status}">${badgeLabel[status]}</div></div>`;
+  }).join('');
+  return `
+    <div class="postit-card reveal">
+      <h4>📌 Histórico de Solicitações</h4>
+      <div class="postit-resumo">${resumoParts.join(' · ') || 'Histórico de solicitações do mês'}</div>
+      <div class="postit-list">${itens}</div>
+    </div>`;
+}
+function renderConclusao(c, pedidos){
   const li = arr => arr.map(x => `<li>${x}</li>`).join('');
   return `
     <section class="camada" id="conclusao" style="margin-bottom:20px;">
@@ -442,17 +658,23 @@ function renderConclusao(c){
         <div class="conclusao-col reveal"><h4>⚠️ Pontos de atenção</h4><ul>${li(c.atencao)}</ul></div>
         <div class="conclusao-col reveal"><h4>🚀 Próximos passos</h4><ul>${li(c.recomendacoes)}</ul></div>
       </div>
+      ${renderHistoricoSolicitacoes(pedidos)}
     </section>`;
 }
-function renderStaticContent(data){
+/* Item 10 (Notion, item 10 das Pendências): toggle mês atual ↔ mês anterior sem reload de página.
+   `renderMain` faz só o conteúdo (o que muda entre os dois meses); os month-tabs são montados uma
+   única vez, separado, porque eles não mudam quando o conteúdo troca — só a aparência ativo/inativo. */
+function destruirGraficosAtuais(){
+  Object.keys(chartInstances).forEach(id => {
+    try { chartInstances[id].destroy(); } catch(e){ /* canvas pode já ter sumido do DOM, ok ignorar */ }
+    delete chartInstances[id];
+  });
+  Object.keys(chartRegistry).forEach(id => delete chartRegistry[id]);
+}
+function renderMain(data){
+  destruirGraficosAtuais();
   document.getElementById('clienteNome').textContent = data.cliente.nome;
   document.title = `LabSights ${data.cliente.nome} — ${data.cliente.mes_extenso}`;
-  const monthTabs = document.getElementById('monthTabs');
-  monthTabs.innerHTML = '';
-  if (data.navegacao.mes_anterior_label){
-    monthTabs.innerHTML += `<div class="month-tab" id="mesAnteriorTab">${data.navegacao.mes_anterior_label}</div>`;
-  }
-  monthTabs.innerHTML += `<div class="month-tab active">${data.cliente.mes_curto}</div>`;
 
   const saudacao = data.cliente.saudacao || `Olá, ${data.cliente.nome.split(' ')[0]}!`;
   const main = document.getElementById('dashboardMain');
@@ -467,8 +689,69 @@ function renderStaticContent(data){
     ${renderCamada('interesse', 'Interesse', 'Estão prestando atenção nela?', data.camadas.interesse)}
     ${renderCamada('intencao', 'Intenção', 'Querem falar com a empresa?', data.camadas.intencao)}
     ${data.velocidade_funil ? renderFunil(data.velocidade_funil) : ''}
-    ${renderConclusao(data.conclusao)}
+    ${renderConclusao(data.conclusao, data.historico_solicitacoes)}
   `;
+  // Reaplica tudo que depende dos elementos recém-criados no DOM (os antigos foram substituídos pelo innerHTML acima).
+  // Gráficos ficam de fora de propósito: quem chama renderMain decide como carregá-los (lazy no
+  // toggle mês anterior/atual; imediato no caso de captura de PDF, via prepareForStaticCapture) —
+  // evita risco real de instanciar o mesmo canvas duas vezes no Chart.js ("Canvas is already in use").
+  setupReveal();
+  setupFunilHover();
+  setupDetalhamentoToggle();
+}
+
+let mesAtualData = null;    // preenchido no INIT, é sempre DASHBOARD_DATA
+let mesArquivadoData = null; // cache do .json arquivado, buscado só na 1ª troca
+let mesArquivadoCarregando = false;
+
+function setTabAtiva(qual){
+  const tabAnterior = document.getElementById('mesAnteriorTab');
+  const tabAtual = document.getElementById('mesAtualTab');
+  if (tabAnterior) tabAnterior.classList.toggle('active', qual === 'anterior');
+  if (tabAtual) tabAtual.classList.toggle('active', qual === 'atual');
+}
+async function trocarParaMesAnterior(){
+  const arquivo = mesAtualData.navegacao && mesAtualData.navegacao.mes_anterior_arquivo;
+  if (!arquivo) return; // sem campo no contrato ainda (cliente/relatório antigo) — tab não deveria nem ser clicável, ver renderMonthTabs
+  if (!mesArquivadoData){
+    if (mesArquivadoCarregando) return;
+    mesArquivadoCarregando = true;
+    try {
+      const resp = await fetch(`./${arquivo}.json`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      mesArquivadoData = await resp.json();
+    } catch(err){
+      console.error('Não foi possível carregar o mês anterior:', err);
+      mesArquivadoCarregando = false;
+      return;
+    }
+    mesArquivadoCarregando = false;
+  }
+  renderMain(mesArquivadoData);
+  try { setupLazyCharts(); } catch(e){ console.error('Charts (mês anterior):', e); }
+  setTabAtiva('anterior');
+}
+function trocarParaMesAtual(){
+  renderMain(mesAtualData);
+  try { setupLazyCharts(); } catch(e){ console.error('Charts (mês atual):', e); }
+  setTabAtiva('atual');
+}
+function renderMonthTabs(){
+  const monthTabs = document.getElementById('monthTabs');
+  monthTabs.innerHTML = '';
+  const nav = mesAtualData.navegacao || {};
+  if (nav.mes_anterior_label && nav.mes_anterior_arquivo){
+    // Clicável: existe rótulo E o nome do arquivo AAAA-MM pra buscar via fetch()
+    monthTabs.innerHTML += `<div class="month-tab clickable" id="mesAnteriorTab">${nav.mes_anterior_label}</div>`;
+  } else if (nav.mes_anterior_label){
+    // Compatibilidade: relatório publicado antes da skill preencher mes_anterior_arquivo — mantém só como rótulo informativo, não clicável
+    monthTabs.innerHTML += `<div class="month-tab">${nav.mes_anterior_label}</div>`;
+  }
+  monthTabs.innerHTML += `<div class="month-tab clickable active" id="mesAtualTab">${mesAtualData.cliente.mes_curto}</div>`;
+  const tabAnterior = document.getElementById('mesAnteriorTab');
+  if (tabAnterior) tabAnterior.addEventListener('click', trocarParaMesAnterior);
+  const tabAtual = document.getElementById('mesAtualTab');
+  if (tabAtual) tabAtual.addEventListener('click', trocarParaMesAtual);
 }
 
 function currentAccent(){ return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); }
@@ -660,11 +943,11 @@ function prepareForStaticCapture(){
 
 /* INIT */
 applyThemeByClock();
-renderStaticContent(DASHBOARD_DATA);
+mesAtualData = DASHBOARD_DATA;
+renderMonthTabs();
+renderMain(mesAtualData);
 try { syncHeaderHeight(); window.addEventListener('resize', syncHeaderHeight); window.addEventListener('load', syncHeaderHeight); } catch(e){ console.error('HeaderSync:', e); }
 try { setupScrollspy(); } catch(e){ console.error('Scrollspy:', e); }
-try { setupReveal(); } catch(e){ console.error('Reveal:', e); }
-try { setupFunilHover(); } catch(e){ console.error('FunilHover:', e); }
 
 if (isCaptureContext()){
   try { prepareForStaticCapture(); } catch(e){ console.error('StaticCapture:', e); window.__pageReadyFlag = true; }
