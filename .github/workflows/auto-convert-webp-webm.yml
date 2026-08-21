@@ -1,0 +1,103 @@
+name: Auto-convert media to WebP/WebM
+
+# Roda sempre que alguém der push com imagem ou vídeo novo/alterado.
+# Também pode ser disparado manualmente (workflow_dispatch) para varrer
+# o repositório inteiro de uma vez — útil pro backlog existente.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.jpg'
+      - '**.jpeg'
+      - '**.png'
+      - '**.mp4'
+      - '**.mov'
+  workflow_dispatch:
+    inputs:
+      full_scan:
+        description: 'Converter TODOS os arquivos do repo (não só os alterados no último push)'
+        required: false
+        default: 'false'
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # precisa de 2 commits pra comparar o que mudou no push
+
+      - name: Instalar cwebp e ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webp ffmpeg
+
+      # ---------- MODO 1: só os arquivos alterados no push ----------
+      - name: Detectar arquivos alterados
+        if: github.event_name == 'push'
+        id: changed
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **.jpg
+            **.jpeg
+            **.png
+            **.mp4
+            **.mov
+
+      - name: Converter arquivos alterados (push normal)
+        if: github.event_name == 'push'
+        run: |
+          for f in ${{ steps.changed.outputs.all_changed_files }}; do
+            case "$f" in
+              *.jpg|*.jpeg|*.png)
+                out="${f%.*}.webp"
+                if [ ! -f "$out" ]; then
+                  cwebp -q 82 "$f" -o "$out"
+                  echo "✅ Convertido: $f -> $out"
+                fi
+                ;;
+              *.mp4|*.mov)
+                out="${f%.*}.webm"
+                if [ ! -f "$out" ]; then
+                  ffmpeg -y -i "$f" -c:v libvpx-vp9 -crf 31 -b:v 0 -an "$out"
+                  echo "✅ Convertido: $f -> $out"
+                fi
+                ;;
+            esac
+          done
+
+      # ---------- MODO 2: varredura completa (workflow_dispatch com full_scan=true) ----------
+      - name: Converter TODOS os arquivos do repo (varredura completa)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.full_scan == 'true'
+        run: |
+          find . -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) ! -path "./.git/*" | while read -r f; do
+            out="${f%.*}.webp"
+            if [ ! -f "$out" ]; then
+              cwebp -q 82 "$f" -o "$out"
+              echo "✅ Convertido: $f -> $out"
+            fi
+          done
+          find . -type f \( -iname "*.mp4" -o -iname "*.mov" \) ! -path "./.git/*" | while read -r f; do
+            out="${f%.*}.webm"
+            if [ ! -f "$out" ]; then
+              ffmpeg -y -i "$f" -c:v libvpx-vp9 -crf 31 -b:v 0 -an "$out"
+              echo "✅ Convertido: $f -> $out"
+            fi
+          done
+
+      - name: Commitar arquivos convertidos
+        run: |
+          git config user.name "sevenlab-bot"
+          git config user.email "bot@7labmarketing.com.br"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "auto: converter mídia nova para WebP/WebM [skip ci]"
+            git push
+          else
+            echo "Nada novo pra converter."
+          fi
