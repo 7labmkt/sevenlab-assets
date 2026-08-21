@@ -64,7 +64,7 @@ jobs:
               *.mp4|*.mov)
                 out="${f%.*}.webm"
                 if [ ! -f "$out" ]; then
-                  ffmpeg -y -i "$f" -c:v libvpx-vp9 -crf 31 -b:v 0 -an "$out"
+                  ffmpeg -nostdin -y -i "$f" -c:v libvpx-vp9 -crf 31 -b:v 0 -an "$out"
                   echo "✅ Convertido: $f -> $out"
                 fi
                 ;;
@@ -85,7 +85,7 @@ jobs:
           find . -type f \( -iname "*.mp4" -o -iname "*.mov" \) ! -path "./.git/*" | while read -r f; do
             out="${f%.*}.webm"
             if [ ! -f "$out" ]; then
-              ffmpeg -y -i "$f" -c:v libvpx-vp9 -crf 31 -b:v 0 -an "$out"
+              ffmpeg -nostdin -y -i "$f" -c:v libvpx-vp9 -crf 31 -b:v 0 -an "$out"
               echo "✅ Convertido: $f -> $out"
             fi
           done
