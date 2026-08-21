@@ -97,7 +97,21 @@ jobs:
           git add -A
           if ! git diff --cached --quiet; then
             git commit -m "auto: converter mídia nova para WebP/WebM [skip ci]"
-            git push
+            # Busca o que mudou no remoto durante a execução do job e rebaseia
+            # em cima antes de empurrar — evita "rejected (fetch first)" quando
+            # outro push chega no main enquanto este job está convertendo.
+            git fetch origin main
+            git rebase origin/main
+            # Tenta empurrar até 3 vezes, refazendo fetch+rebase a cada tentativa,
+            # caso outro push chegue bem no meio da corrida.
+            for i in 1 2 3; do
+              if git push; then
+                break
+              fi
+              echo "Push rejeitado, tentando de novo ($i/3)..."
+              git fetch origin main
+              git rebase origin/main
+            done
           else
             echo "Nada novo pra converter."
           fi
